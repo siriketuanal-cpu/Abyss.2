@@ -1,41 +1,41 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="theme-color" content="#000000">
-  <meta name="mobile-web-app-capable" content="yes">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>深淵</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<meta name="mobile-web-app-capable" content="yes">
+
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="styles-phase3.css">
-  <link rel="stylesheet" href="styles-phase4.css">
-  <title>深淵</title>
 </head>
 <body>
-  <main class="wrap" id="app" aria-live="polite">
-    <header class="bar">
-      <div class="bar-left"><button id="manage-button" class="text-button" type="button">管理</button><span class="bar-note">毎朝5:00更新</span></div>
-      <div id="game-date" class="daily-value"></div>
-      <div id="daily-progress" class="daily-progress" aria-label="デイリー進捗"></div>
-    </header>
-    <section id="abyss-grid" class="abyss-grid" aria-label="ドットアビス"></section>
-    <section id="g-grid" class="other-grid" aria-label="Gジェネ"></section>
-    <section id="sl-grid" class="other-grid" aria-label="スターリープ"></section>
-  </main>
-  <div id="backdrop" class="backdrop" aria-hidden="true"></div>
-  <dialog id="manage-dialog" class="manage-dialog" aria-labelledby="manage-title">
-    <section class="manage-panel">
-      <header class="manage-head"><h2 id="manage-title">管理</h2><button id="manage-close" class="manage-close" type="button" aria-label="閉じる">×</button></header>
-      <p class="manage-copy">保存データはv227と同じ形式です。操作前にエクスポートを作成できます。</p>
-      <div class="manage-actions">
-        <button id="export-button" type="button">保存を書き出す</button>
-        <label class="file-button">保存を読み込む<input id="import-input" type="file" accept="application/json,.json"></label>
-        <button id="reset-button" class="danger-button" type="button">この端末の保存を初期化</button>
-      </div>
-      <p id="manage-status" class="manage-status" role="status"></p>
-    </section>
-  </dialog>
-  <script type="module" src="app.js"></script>
+<div class="wrap">
+  <div class="bar">
+    <div class="bar-left"><span class="bar-note">毎朝5:00更新</span></div>
+    <span class="daily-val" id="dailyDateDisplay">—</span>
+    <span class="daily-progress" id="dailyProgress"></span>
+  </div>
+  <div class="grid" id="grid" aria-label="ドットアビス全グループ"></div>
+  <div id="gamesAll" aria-label="Gジェネ・スターリープタイマー">
+    <div class="game-tab-panel" id="game-panel-g" aria-label="Gジェネ">
+      <div class="gsection"><div class="gwrap" id="gwrap"></div></div>
+    </div>
+    <div class="game-tab-panel" id="game-panel-sl" aria-label="スターリープ">
+      <div class="slsection"><div class="slwrap" id="slwrap"></div></div>
+    </div>
+  </div>
+  <div class="backdrop" id="backdrop" onclick="closeAllPanels()"></div>
+</div>
+<footer><span id="saveStamp">読み込み中…</span></footer>
+<script src="core.js"></script>
+<script src="abyss.js"></script>
+<script src="generation.js"></script>
+<script src="starleap.js"></script>
+<script src="bootstrap.js"></script>
 </body>
 </html>
