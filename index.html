@@ -1,0 +1,2792 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>深淵</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<meta name="mobile-web-app-capable" content="yes">
+
+<style>
+:root{
+  --bg:#000000; --bg-panel:#000000; --bg-card:#000000; --bg-inset:#111111;
+  --line:#262f45; --ink:#e9e7e0; --ink-dim:#8b93a7;
+  --amber:#ffab5c; --violet:#9c86ff; --ok:#8fd6a8; --danger:#ff6b6b;
+  --stam-full-c:#ff3b3b;
+  /* 到達表示は共通の語法で、ゲームごとに一目で見分けられる色を使う。 */
+  --reach-abyss:#ff3b3b;
+  --reach-g:#6fe8ff;
+  --reach-sl:#b9aaff;
+  --reach-orb:#f2a4b7;
+  --reach-plan:#c9b8ff;
+  --idle-plan:#bfe8ff;
+  /* オーブは次回（ラベンダー）と全回復予定（桜色）を役割別に区別する。 */
+  --orb-next:#c9b8ff;
+  --orb-full:#f2a4b7;
+  --g0:#7c5fd6; --g1:#5b9dff; --g2:#8fa3c4;
+  --stam-cur-c:#6fe8ff; --idle-c:#ffd166;
+  /* 全ゲームのカード基準（現在の文字バランスに合わせた枠定義） */
+  --timer-card-radius:9px;
+  --timer-card-pad-y:6px;
+  --timer-card-header-min:14px;
+  --timer-card-sub-height:13px;
+  --timer-card-min-height:72px;
+  --timer-card-name-size:7.5px;
+  --timer-card-name-weight:700;
+  --timer-sub-font:10px;
+  --timer-main-size:clamp(13px,3.6vw,16px);
+  --timer-orb-size:clamp(12px,3.2vw,14px);
+  --timer-orb-tracking:1px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;overscroll-behavior:none;background-color:#000;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
+  min-height:100vh;
+  padding:12px 10px 32px;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  overscroll-behavior-y:none;
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+}
+input,textarea{
+  -webkit-user-select:text;user-select:text;
+  -webkit-touch-callout:none!important;
+}
+.wrap{max-width:820px;margin:0 auto;}
+.bar{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;
+  background:var(--bg-panel);border:1px solid #3d4a62;border-radius:12px;
+  padding:6px 12px;margin-bottom:8px;font-size:12px;color:var(--ink-dim);
+  min-height:40px;
+}
+.bar-left{display:flex;align-items:center;gap:8px;justify-self:start;}
+.bar-note{font-size:10px;color:var(--ink-dim);display:none;}
+.daily-val{
+  color:#9fd1f5;font-weight:700;font-variant-numeric:tabular-nums;font-size:16px;
+  justify-self:center;white-space:nowrap;line-height:1;
+  height:28px;display:flex;align-items:center;
+}
+.daily-progress{
+  justify-self:end;display:flex;align-items:center;justify-content:flex-end;gap:3px;
+  min-height:28px;height:28px;min-width:90px;
+}
+.pdot{
+  width:13px;height:13px;border-radius:3px;border:1.5px solid var(--line);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:900;color:transparent;
+}
+.pdot.d0,.pdot.d1{--dotcolor:var(--g0);}
+.pdot.d2,.pdot.d3{--dotcolor:var(--g1);}
+.pdot.d4,.pdot.d5{--dotcolor:var(--g2);}
+.pdot.filled{background:var(--dotcolor);border-color:var(--dotcolor);color:#fff;}
+.complete-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:20px;padding:0 6px;border-radius:4px;
+  font-size:9px;font-weight:800;letter-spacing:.04em;
+  line-height:1;white-space:nowrap;
+  color:#1a1408;
+  background:#ffc94a;
+  border:1px solid #e0a82e;
+}
+/* テスト用: ドットアビスをグループカラーごとに切り替える。 */
+.card-row{display:flex;align-items:center;gap:11px;}
+/* ドットアビスはスタミナと放置報酬を独立カードとして横並びにする。 */
+.abyss-timers{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;flex:1 1 auto;min-width:0;}
+.abyss-timers > .card{min-width:0;}
+/* 放置報酬は一枚カードのまま、スタミナ側の名前・ランク行ぶんだけ上部余白を確保する。 */
+.card.abyss-idle-card{cursor:pointer;padding-top:29px;}
+.card-row:nth-child(3),.card-row:nth-child(5){
+  margin-top:2px;padding-top:8px;border-top:1px solid #5a6a88;
+}
+.card{
+  background:var(--bg-card);border:1px solid #2c2c2c;border-radius:var(--timer-card-radius);padding:var(--timer-card-pad-y) 11px;
+  cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  flex:1 1 auto;min-width:0;
+  transition:border-color .12s ease;
+  contain:layout style;
+}
+.card.g0{border:1.5px solid var(--g0);}
+.card.g1{border:1.5px solid var(--g1);}
+.card.g2{border:1.5px solid var(--g2);}
+.card.open{z-index:30;}
+
+.card.g0.open{border-color:var(--g0);box-shadow:0 0 0 1.5px var(--g0);}
+.card.g1.open{border-color:var(--g1);box-shadow:0 0 0 1.5px var(--g1);}
+.card.g2.open{border-color:var(--g2);box-shadow:0 0 0 1.5px var(--g2);}
+
+/* ドットアビスは内部操作を分離したまま、外枠だけを連結して1枚の管理カード風に見せる。 */
+.abyss-timers{position:relative;gap:0;flex:0 0 75%;max-width:75%;}
+.abyss-timers > .abyss-stam-card{
+  border-radius:12px 0 0 12px;
+  border-right:0!important;
+  padding-right:12px;
+}
+.abyss-timers > .abyss-idle-card{
+  border-radius:0 12px 12px 0;
+  border-left:0!important;
+  padding-left:12px;
+}
+/* 選択タブは内側を中立な濃色に保ち、下線・外枠・文字の強調だけで状態を伝える。 */
+.row-top{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+/* 放置報酬は一枚の受取カードとして扱い、デイリー✔だけを右上へ重ねる。 */
+.abyss-idle-card .daily-mark{
+  position:absolute;z-index:2;top:7px;right:11px;
+  width:auto;height:auto;border:none;border-radius:0;background:transparent;box-shadow:none;
+  color:transparent;font-size:24px;line-height:1;text-shadow:none;pointer-events:none;cursor:inherit;
+  -webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;
+}
+.idle-mark.daily-mark.show{
+  color:#b9aaff;background:transparent;border:none;box-shadow:none;
+  text-shadow:0 0 7px rgba(185,170,255,.55);
+}
+.idle-mark.g0.daily-mark.show{
+  color:#b9aaff;background:transparent;border:none;box-shadow:none;
+  text-shadow:0 0 7px rgba(185,170,255,.55);
+}
+.idle-mark.g1.daily-mark.show{
+  color:#6fe8ff;background:transparent;border:none;box-shadow:none;
+  text-shadow:0 0 7px rgba(111,232,255,.55);
+}
+.idle-mark.g2.daily-mark.show{
+  color:#d0d8e8;background:transparent;border:none;box-shadow:none;
+  text-shadow:0 0 7px rgba(208,216,232,.55);
+}
+.abyss-idle-card .weekly-mark{
+  position:absolute;z-index:2;right:8px;bottom:6px;
+  color:transparent;font-size:16px;line-height:1;font-weight:900;
+  text-shadow:none;pointer-events:none;cursor:inherit;
+  -webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;
+}
+.abyss-idle-card .weekly-mark.show{
+  color:#5ef0a8;
+  text-shadow:0 0 6px rgba(94,240,168,.45),0 1px 0 rgba(0,0,0,.55);
+}
+.idle-mark.disabled-by-edit{pointer-events:none;opacity:.25;}
+.rank-disp,.rank-input{
+  margin-left:auto;flex-shrink:0;width:4.2em;max-width:38%;
+  color:#f0a07a;font-size:var(--timer-card-name-size);font-weight:var(--timer-card-name-weight);
+  font-family:inherit;line-height:1.2;text-align:right;
+  font-variant-numeric:tabular-nums;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+  .rank-disp{
+  display:inline-block;border-bottom:1px dashed transparent;cursor:pointer;
+  -webkit-user-select:none!important;user-select:none!important;
+  -webkit-touch-callout:none!important;-webkit-user-drag:none;touch-action:manipulation;
+}
+.rank-disp::selection{background:transparent;color:inherit;}
+/* 長押しの対象は表示枠全体ではなく、実際の文字の近くに限定する。 */
+.name-lp-hit,.rank-lp-hit{
+  display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:0 1px;cursor:pointer;touch-action:manipulation;
+  -webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;
+}
+.rank-lp-hit{min-width:2.4em;text-align:right;}
+.rank-input{
+  display:none;background:transparent;border:none;border-bottom:1px dashed #f0a07a;
+  outline:none;caret-color:#f0a07a;text-align:right;
+  -webkit-user-select:text;user-select:text;-webkit-touch-callout:default;
+}
+.rank-input.editing{display:inline-block;}
+
+.name-disp,.name-input{
+  width:6em;max-width:38%;min-width:3.5em;
+  color:var(--ink);font-size:var(--timer-card-name-size);font-weight:var(--timer-card-name-weight);
+  font-family:inherit;line-height:1.2;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+.name-disp{
+  display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  border-bottom:1px dashed transparent;cursor:pointer;
+  -webkit-user-select:none!important;user-select:none!important;
+  -webkit-touch-callout:none!important;touch-action:manipulation;
+}
+.name-disp.empty{color:var(--ink-dim);font-weight:500;}
+.name-input{
+  display:none;background:transparent;border:none;border-bottom:1px dashed var(--violet);
+  outline:none;caret-color:var(--ink);max-width:55%;width:8em;
+  -webkit-user-select:text;user-select:text;-webkit-touch-callout:default;
+}
+.name-input.editing{display:inline-block;}
+.name-input:focus{outline:none;}
+
+
+@keyframes markShake{
+  0%,100%{transform:translateX(0);}
+  25%{transform:translateX(-3px);}
+  75%{transform:translateX(3px);}
+}
+.tblock{min-width:0;}
+.ttag{font-size:9px;font-weight:700;letter-spacing:.04em;}
+/* スタミナ行ラベル枠は回復予定時刻用。サイズは旧「スタミナ」相当、極太。 */
+.ttag.stam{color:var(--reach-plan);font-weight:800;font-variant-numeric:tabular-nums;min-height:1em;letter-spacing:.02em;}
+.ttag.idle{color:var(--idle-c);}
+.tval{
+  font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
+  line-height:1.05;white-space:nowrap;overflow:hidden;min-width:7.2ch;display:inline-block;letter-spacing:.01em;
+}
+.tval.stam{color:var(--ok);}
+.tval.idle{color:var(--idle-c);}
+.tval.full{color:var(--stam-full-c)!important;}
+.tval.reached{color:var(--reach-abyss)!important;}
+.tval.urgent{color:var(--stam-full-c)!important;}
+.tsub{font-size:10px;color:var(--ink);height:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+.tsub{position:relative;}
+.tsub-cur{display:inline-block;width:calc(3ch + 2px);font-weight:800;text-align:right;color:#ffb35e;font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;}
+/* 現在値だけを元の3文字幅の領域で置き換える。後続の/上限値と時刻は動かさない。 */
+.tsub-cur-input{
+  display:none;position:absolute;left:0;top:0;width:3ch;height:13px;box-sizing:border-box;margin:0;padding:0;
+  border:0;border-radius:0;background:transparent;color:#ffb35e;
+  font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
+  font-size:10px;line-height:13px;font-weight:700;text-align:left;outline:none;appearance:textfield;-moz-appearance:textfield;
+}
+.tsub-cur-input::-webkit-outer-spin-button,.tsub-cur-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.tsub.stam-manual-editing .tsub-cur{visibility:hidden;}
+.tsub.stam-manual-editing .tsub-cur-input{display:block;}
+/* 1回目のタップで表示する40消費後の参考値。対象カードは暗転より前面に保つ。 */
+.card.stam-preview{z-index:28;}
+.tsub-sep{font-weight:600;color:var(--ink-dim);margin:0 1px;}
+.tsub-max{font-weight:800;color:var(--stam-cur-c);font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;}
+/* スタミナ補助行の予定時刻はラベル位置へ移したため、ここは通常非表示。 */
+.tsub-clock{display:none;margin-left:0;}
+/* 放置予定・受取は水色。確認待ちタイマーは通常色。 */
+.idle-clock{color:var(--idle-plan);font-weight:700;}
+.idle-meta{color:var(--idle-plan);font-weight:700;}
+.tblock-idle{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.tblock-idle.receive-armed .idle-meta,
+.tblock-idle.receive-armed .idle-clock,
+.abyss-idle-card.receive-armed .idle-meta,
+.abyss-idle-card.receive-armed .idle-clock{color:var(--idle-plan)!important;}
+.edit-panel{
+  display:none;position:absolute;top:calc(100% + 6px);background:#000;
+  border:1px solid var(--violet);border-radius:12px;padding:10px 12px;
+  z-index:31;
+  contain:layout style;
+  box-sizing:border-box;
+  width:100%;
+  left:0;right:auto;
+}
+.card.g0 .edit-panel{border-color:var(--g0);}
+.card.g1 .edit-panel{border-color:var(--g1);}
+.card.g2 .edit-panel{border-color:var(--g2);}
+.card.open .edit-panel{display:block;border-color:var(--ok);}
+.edit-side-stam{
+  display:flex;align-items:center;width:100%;min-width:0;
+  justify-content:flex-start;position:relative;gap:0;min-height:34px;
+}
+.edit-side-stam input[type="number"]{
+  width:42px;
+  flex:0 0 42px;
+  background:var(--bg-inset);
+  border:1px solid #4a5a78;
+  border-radius:6px;
+  color:var(--ink);
+  padding:4px 5px;
+  font-size:11.5px;
+  font-family:inherit;
+  text-align:center;
+  box-sizing:border-box;
+}
+.edit-side-stam .ebtn.stam{
+  position:absolute;
+  left:58%;
+  transform:translateX(-50%);
+  padding:6px 12px;
+  font-size:11.5px;
+  border-radius:8px;
+  white-space:nowrap;
+}
+
+.backdrop{
+  display:none;
+  position:fixed;
+  z-index:25;
+  top:-30vh;
+  left:0;
+  right:0;
+  height:160vh;
+  width:100%;
+  background:#000;
+  opacity:.72;
+  pointer-events:auto;
+  -webkit-transform:translateZ(0);
+  transform:translateZ(0);
+}
+.backdrop.show{display:block;}
+/* 放置報酬の受取確認は、編集モーダルより薄い暗転で対象だけを明確にする。 */
+.backdrop.idle-confirm{display:block;z-index:27;opacity:.72;}
+.abyss-idle-card.receive-armed{z-index:28;}
+.ebtn.idle.armed{background:linear-gradient(135deg,#ffb4b4,#ff6b6b);color:#2a0a0a;animation:armPulse .8s ease-in-out infinite;}
+@keyframes armPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+.edit-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.edit-row:last-child{margin-bottom:0;}
+.edit-row input[type="number"]{
+  width:56px;background:var(--bg-inset);border:1px solid var(--line);border-radius:6px;
+  color:var(--ink);padding:6px 7px;font-size:13px;font-family:inherit;
+}
+.edit-row-oneline{flex-wrap:wrap;row-gap:8px;}
+.edit-row-oneline > input[type="number"]{width:52px;}
+.ebtn{border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.03em;}
+.ebtn.stam{background:linear-gradient(135deg,#8ec5ff,#5b9dff);color:#0b1220;}
+.ebtn.idle{background:linear-gradient(135deg,#c4b5fd,#9c86ff);color:#1a1030;}
+.ebtn-gap{flex:1;}
+footer{text-align:center;color:var(--ink-dim);font-size:10.5px;margin-top:10px;display:none;}
+
+/* 共通75%幅のタイマー領域を、それぞれの所属領域の中央へ揃える。 */
+#grid .card-row{justify-content:center;}
+
+/* ドットアビス：左右2組。中央スペーサ列を廃止し、組間は column-gap のみ（狭く・カードを広く）。 */
+/* 横幅は日付バーと同じく 100%。 */
+#grid{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+  column-gap:3px;row-gap:6px;
+  width:100%;max-width:none;margin:10px auto 0;padding:0;
+  border:0;border-radius:0;background:transparent;
+  box-sizing:border-box;
+}
+#grid .card-row{display:contents!important;}
+#grid .abyss-timers{display:contents;}
+#grid{display:grid;}
+#grid .card{
+  min-width:0;min-height:86px;border-width:1px;box-shadow:none;
+  background:#090e16;transition:none;
+}
+#grid .abyss-stam-card{
+  border-radius:9px 0 0 9px;border-right:0!important;
+  padding:6px 6px 4px 8px;background:#090e16;
+  display:flex;flex-direction:column;
+}
+#grid .abyss-stam-card .tblock-stam{
+  display:flex;flex-direction:column;flex:0 0 auto;margin-top:auto;
+}
+#grid .abyss-idle-card{
+  width:calc(100% + 5px);margin-left:-5px;
+  border-radius:0 9px 9px 0;border-left:0!important;
+  padding:6px 7px 4px 6px!important;
+  background:#090e16;
+  display:flex;flex-direction:column;
+  justify-content:flex-end;
+}
+#grid .abyss-idle-card .ttag.idle{margin-top:0;}
+#grid .card.g0{border-color:var(--g0)!important;}
+#grid .card.g1{border-color:var(--g1)!important;}
+#grid .card.g2{border-color:var(--g2)!important;}
+/* 行・列はカードごとのCSS変数で与え、全スロットを同じグリッド規則へ統一する。 */
+#grid .abyss-stam-card{grid-row:var(--abyss-row);grid-column:var(--abyss-stam-column);}
+#grid .abyss-idle-card{grid-row:var(--abyss-row);grid-column:var(--abyss-idle-column);}
+#grid .row-top{min-height:17px;gap:3px;margin-bottom:4px;align-items:center;}
+#grid .name-disp,#grid .name-input,#grid .rank-disp,#grid .rank-input{
+  font-size:10.5px;line-height:1.15;min-width:0;
+}
+#grid .name-disp,#grid .name-input{max-width:66%;font-weight:800;}
+#grid .name-disp.empty{font-weight:600;}
+#grid .rank-disp,#grid .rank-input{font-weight:800;}
+#grid .rank-lp-hit{min-width:auto;}
+#grid .ttag{font-size:8px;line-height:1.05;letter-spacing:0;}
+/* 上段予定時刻：放置と同じ丸み数字フォント */
+#grid .abyss-stam-card .ttag.stam.stam-plan-tag,
+#grid .abyss-idle-card .ttag.idle.idle-plan-tag{
+  font-size:13px;font-weight:700;line-height:13px;letter-spacing:.02em;
+  min-height:13px;height:13px;max-height:13px;
+  box-sizing:border-box;
+  display:flex;align-items:flex-end;gap:2px;
+  margin:0 0 3px 0;padding:0;
+  overflow:hidden;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+  flex:0 0 auto;
+  font-family:var(--timer-pop-system-font);
+}
+#grid .abyss-stam-card .stam-plan-clock,
+#grid .abyss-stam-card .stam-plan-tag .idle-clock{
+  color:var(--reach-plan)!important;
+  font-size:13px;font-weight:700;
+  font-family:var(--timer-pop-system-font);
+  font-variant-numeric:tabular-nums;
+}
+#grid .abyss-idle-card .idle-plan-tag,
+#grid .abyss-idle-card .idle-plan-tag .idle-clock{
+  color:var(--idle-plan)!important;
+  font-size:13px;font-weight:700;
+  font-family:var(--timer-pop-system-font);
+  font-variant-numeric:tabular-nums;
+}
+/* 確定待ちだけは予定時刻より控えめにし、通常の時刻表示は13pxのまま維持する。 */
+#grid .abyss-stam-card .stam-plan-clock.await-action-label,
+#grid .abyss-idle-card .idle-plan-tag .await-action-label{
+  font-size:10px!important;
+  line-height:13px!important;
+  letter-spacing:0!important;
+}
+#grid .tval{
+  font-size:clamp(16px,4.6vw,19px);line-height:1.05;
+  flex:0 0 auto;margin:0;padding:0;
+}
+#grid .tsub{
+  height:var(--timer-card-sub-height);margin-top:1px;
+  font-size:var(--timer-sub-font);line-height:var(--timer-card-sub-height);font-weight:700;
+}
+#grid .abyss-stam-card .tsub.stam-curmax,
+#grid .abyss-idle-card .tsub.idle-bottom-spacer{
+  position:relative;
+  margin:3px 0 0 0;padding:0;
+  height:19px;min-height:19px;max-height:19px;
+  line-height:19px;font-size:15px;
+  display:flex;align-items:baseline;
+  overflow:hidden;white-space:nowrap;
+  flex:0 0 auto;
+  box-sizing:border-box;
+}
+#grid .abyss-stam-card .tsub.stam-curmax{
+  transform:translateX(-2px);
+}
+#grid .tsub-cur,#grid .tsub-max{font-size:var(--timer-sub-font);font-weight:800;}
+#grid .abyss-stam-card .tsub-max{
+  font-size:15px;font-weight:800;line-height:19px;color:var(--stam-cur-c);
+}
+#grid .abyss-stam-card .tsub-sep{font-size:15px;line-height:19px;margin:0 1px;}
+#grid .daily-mark{top:4px;right:5px;font-size:26px;line-height:1;font-weight:900;}
+#grid .card.stam-preview{background:rgba(0,0,0,.46)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)!important;}
+#grid .abyss-stam-card .stam-cur-field{
+  display:inline-block;
+  width:3.4ch;min-width:3.4ch;max-width:4.2ch;
+  height:19px;margin:0;padding:0;border:0;border-radius:0;
+  background:transparent;outline:none;box-sizing:border-box;
+  font-family:var(--timer-pop-system-font);font-variant-numeric:tabular-nums;
+  font-size:15px;line-height:19px;font-weight:800;
+  text-align:right;color:#ffb35e;letter-spacing:0;
+  -webkit-appearance:none;appearance:none;
+  caret-color:transparent;
+  pointer-events:none;
+  transform:none!important;
+}
+#grid .abyss-stam-card .stam-curmax.stam-manual-editing .stam-cur-field{
+  pointer-events:auto;
+  caret-color:transparent;
+}
+/* 汎用（他ゲーム用の既存ルール用に残す） */
+#grid .tsub-cur-input{
+  left:0;top:0;width:calc(3ch + 2px);height:var(--timer-card-sub-height);margin:0;padding:0;
+  border:0;background:transparent;outline:none;
+  font-family:var(--timer-pop-system-font);font-size:var(--timer-sub-font);line-height:var(--timer-card-sub-height);font-weight:800;text-align:right;
+  color:#ffb35e;letter-spacing:inherit;
+  -webkit-appearance:none;appearance:none;
+}
+
+#gamesAll{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;
+  width:100%;max-width:none;margin:10px auto 0;
+  box-sizing:border-box;
+}
+#gamesAll .game-tab-panel,#gamesAll .gsection,#gamesAll .slsection,#gamesAll .gwrap,#gamesAll .slwrap{display:contents!important;}
+#gamesAll .gsection-title{display:none;}
+#gamesAll .gcard,#gamesAll .slcard{
+  min-width:0;min-height:0;border-width:1px;border-radius:var(--timer-card-radius);box-shadow:none;
+  padding:var(--timer-card-pad-y);background:#090e16;
+}
+#gamesAll .grow-top{min-height:10px;margin-bottom:2px;gap:2px;}
+#gamesAll .gname-disp,#gamesAll .gname-input{font-size:7.5px;line-height:1;max-width:64%;}
+#gamesAll .gval,#gamesAll .slmain{font-size:var(--timer-main-size);line-height:1.05;}
+#gamesAll .slmain.slorbs{font-size:var(--timer-orb-size);letter-spacing:var(--timer-orb-tracking);line-height:1.1;}
+#gamesAll .gsub,#gamesAll .slsub{font-size:var(--timer-sub-font);line-height:var(--timer-card-sub-height);min-height:var(--timer-card-sub-height);margin-top:1px;font-weight:700;}
+#gamesAll .gsub-cur,#gamesAll .gsub-max,
+#gamesAll .sl-stamina-current-display,#gamesAll .sl-stamina-max-display{font-size:var(--timer-sub-font);font-weight:800;}
+#gamesAll .slcard{padding:6px;}
+#gamesAll .daily-mark{top:6px;right:6px;font-size:14px;}
+/* ゲーム側の数値入力を、通常の現在値表示と同じ基準線へ重ねる。 */
+#gamesAll .g-inline-current-field,
+#gamesAll .sl-stamina-current-input{
+  left:0;top:0;width:calc(3ch + 2px);height:var(--timer-card-sub-height);
+  border:0;background:transparent;outline:none;padding:0;margin:0;
+  font-family:var(--timer-pop-system-font);font-size:var(--timer-sub-font);line-height:var(--timer-card-sub-height);font-weight:800;
+  text-align:right;color:#ffb35e;letter-spacing:inherit;
+  -webkit-appearance:none;appearance:none;
+}
+/* Gジェネ上限値も、通常の上限表示の開始位置・高さ・文字基準へ合わせる。 */
+#gamesAll .g-inline-max-field{
+  left:calc(3ch + 7px);top:0;width:3ch;height:var(--timer-card-sub-height);
+  border:0;background:transparent;outline:none;padding:0;margin:0;
+  font-family:var(--timer-pop-system-font);font-size:var(--timer-sub-font);line-height:var(--timer-card-sub-height);font-weight:800;
+  text-align:left;color:var(--stam-cur-c);letter-spacing:inherit;
+  -webkit-appearance:none;appearance:none;
+}
+/* 横4枠のGジェネで、名前・タイマー・補助表示の縦位置を揃える。 */
+#gamesAll .gcard{padding:6px;}
+/* 到達ラベルは時刻より十分小さく、数値の下端へ寄せる。 */
+/* 到達は常に幅を確保し、表示時だけ見えるようにしてレイアウトずれを防ぐ */
+#grid .tval.stam,
+#grid .tval.idle{
+  display:inline-flex;align-items:flex-end;gap:1px;white-space:nowrap;
+}
+#grid .tval.stam::after,
+#grid .tval.idle::after{
+  content:"到達";
+  font:800 10px/10px var(--timer-pop-system-font);
+  letter-spacing:0;margin-bottom:1px;
+  opacity:0; /* 非到達時も同じ幅を確保 */
+  flex-shrink:0;
+}
+#grid .tval.stam.reached::after,
+#grid .tval.idle.reached::after{
+  opacity:1;
+}
+#gamesAll .gval,
+#gamesAll .slmain{
+  display:inline-flex;align-items:flex-end;gap:1px;white-space:nowrap;
+}
+#gamesAll .gval::after,
+#gamesAll .slmain::after{
+  content:"到達";
+  font:800 10px/10px var(--timer-pop-system-font);
+  letter-spacing:0;margin-bottom:1px;
+  opacity:0;
+  flex-shrink:0;
+}
+#gamesAll .gval.reached::after,
+#gamesAll .slmain.reached::after{
+  opacity:1;
+}
+/* 縮小後も完了状態を見逃さないよう、ドットアビス右上のデイリー記号を拡大する。 */
+#grid .daily-mark{top:4px;right:5px;font-size:26px;line-height:26px;font-weight:900;}
+/* idle/stam Yは flex + 共通ttag行高で揃える */
+
+/* スターリープの識別ラベルを撤去し、主タイマーとスタミナ行をカード下側へ揃える。 */
+/* スターリープ名称を表示し、Gジェネとヘッダー高さを揃える */
+#gamesAll .gcard,
+#gamesAll .slcard{
+  padding:5px 6px 4px;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  box-sizing:border-box;
+  min-height:0 !important;
+}
+#gamesAll .slcard::before{display:none !important;content:none !important;}
+#gamesAll .slcard .slname,
+#gamesAll .slname{
+  display:block !important;
+  font-size:7.5px;
+  line-height:1;
+  font-weight:700;
+  color:var(--ink);
+  max-width:90%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#gamesAll .slhead,
+#gamesAll .grow-top{
+  display:flex;
+  align-items:center;
+  min-height:16px;
+  height:16px;
+  margin:0 0 2px;
+  gap:2px;
+  flex-shrink:0;
+}
+#gamesAll .gmark{
+  width:14px;
+  height:14px;
+  font-size:9px;
+  flex-shrink:0;
+}
+#gamesAll .gval,
+#gamesAll .slmain{
+  display:inline-flex;
+  align-items:flex-end;
+  gap:1px;
+  margin:0;
+  line-height:1.05;
+  white-space:nowrap;
+}
+	
+	.gsection{margin-top:14px;}
+.gsection-title{
+  font-size:11px;color:var(--ink-dim);font-weight:700;margin:0 0 6px 2px;
+  display:flex;align-items:baseline;gap:6px;
+}
+.gsection-note{font-size:9.5px;font-weight:400;color:#5c6785;display:none;}
+.gwrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .gcard{
+  background:var(--bg-card);border:1.5px solid #3a3a3a;border-radius:var(--timer-card-radius);padding:var(--timer-card-pad-y) 9px;
+  cursor:pointer;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent;
+}
+.gcard.g-inline-active,
+#gamesAll .gcard.g-inline-active{border-color:var(--reach-g,#6fe8ff);z-index:30;}
+.slcard.sl-inline-active,
+#gamesAll .slcard.sl-inline-active{border-color:var(--reach-g,#6fe8ff);z-index:30;}
+.grow-top{display:flex;align-items:center;justify-content:space-between;min-height:var(--timer-card-header-min);margin-bottom:2px;}
+.gname-disp,.gname-input{
+  font-size:var(--timer-card-name-size);font-weight:var(--timer-card-name-weight);color:var(--ink);
+  font-family:inherit;line-height:1.2;max-width:70%;min-width:2.5em;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+.gname-disp{
+  display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  border-bottom:1px dashed transparent;cursor:pointer;
+  -webkit-user-select:none!important;user-select:none!important;
+  -webkit-touch-callout:none!important;touch-action:manipulation;
+}
+.gname-disp.empty{color:var(--ink-dim);font-weight:500;}
+.gname-input{
+  display:none;background:transparent;border:none;border-bottom:1px dashed var(--violet);
+  outline:none;caret-color:var(--ink);width:6em;max-width:75%;
+  -webkit-user-select:text;user-select:text;-webkit-touch-callout:default;
+}
+.gname-input.editing{display:inline-block;}
+.gval{
+  font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
+  color:var(--ok);line-height:1.1;
+}
+.gval.full{color:var(--reach-g)!important;}
+.gval.reached{color:var(--reach-g)!important;}
+.gsub{position:relative;height:var(--timer-card-sub-height);font-size:10px;color:var(--ink);margin-top:1px;}
+.gsub .gsub-cur{display:inline-block;width:calc(3ch + 2px);font-weight:700;text-align:right;color:#ffb35e;font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;}
+.gsub .gsub-sep{font-weight:600;color:var(--ink-dim);margin:0 1px;}
+.gsub .gsub-max{display:inline-block;width:3ch;font-weight:700;color:var(--stam-cur-c);font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;}
+.gsub .gsub-clock{color:var(--reach-plan);font-weight:700;margin-left:3px;}
+.gname-lp-hit{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 1px;cursor:pointer;touch-action:manipulation;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;}
+.g-inline-field,.sl-stamina-current-input{display:none;position:absolute;top:0;width:3ch;height:13px;box-sizing:border-box;background:transparent;border:0;border-radius:0;font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;font-size:10px;line-height:13px;font-weight:700;text-align:left;outline:none;padding:0;margin:0;appearance:textfield;-moz-appearance:textfield;}
+.g-inline-field::-webkit-outer-spin-button,.g-inline-field::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.g-inline-current .gsub-cur{visibility:hidden;}
+.g-inline-current .g-inline-current-field{display:block;left:0;color:#ffb35e;}
+.g-inline-max .gsub-max{visibility:hidden;}
+.g-inline-max .g-inline-max-field{display:block;left:calc(4.4ch + 2px);color:var(--stam-cur-c);}
+.gmark{
+  width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:900;color:transparent;cursor:pointer;
+  border:1.5px solid var(--line);background:transparent;opacity:.45;outline:none;user-select:none;
+  flex-shrink:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;
+  appearance:none;-webkit-appearance:none;font-family:inherit;padding:0;
+}
+.gmark.show{opacity:1;color:#fff;border-color:var(--stam-cur-c);background:transparent;}
+
+  /* 幻想水滸伝 STAR LEAP */
+  .slsection{margin-top:14px;}
+  .slwrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .slcard{
+    background:var(--bg-card);border:1.5px solid #3a3a3a;border-radius:var(--timer-card-radius);padding:var(--timer-card-pad-y) 9px;
+    cursor:pointer;position:relative;min-width:0;overflow:visible;-webkit-tap-highlight-color:transparent;
+  }
+  .slcard.sl-inline-active{border-color:#6fe8ff;z-index:30;}
+  .slhead{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:var(--timer-card-header-min);margin-bottom:2px;}
+  .slname{font-size:var(--timer-card-name-size);font-weight:var(--timer-card-name-weight);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .slmain{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ok);line-height:1.1;white-space:nowrap;overflow:hidden;}
+  .slmain.full,.slmain.reached{color:var(--reach-sl);}
+  .slorbs{letter-spacing:var(--timer-orb-tracking);color:var(--reach-orb);font-size:var(--timer-orb-size);}
+  .slorbs.full{color:var(--reach-orb);}
+  .slsub{height:var(--timer-card-sub-height);margin-top:1px;font-size:9.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+  .slsub.sl-stamina-sub{position:relative;overflow:visible;text-overflow:clip;}
+  #sl-stamina-clock{color:var(--reach-plan);font-weight:700;margin-left:3px;}
+  .sl-stamina-sep{font-weight:600;color:var(--ink-dim);margin:0 1px;}
+  .sl-stamina-max-display{display:inline;font-weight:700;color:var(--stam-cur-c);font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;}
+  .sl-inline-field:not(.sl-stamina-current-input){display:none;box-sizing:border-box;height:16px;background:var(--bg-inset);border:1px solid #4a5a78;border-radius:4px;color:var(--ink);padding:0 3px;font-size:10px;line-height:14px;font-family:inherit;text-align:center;vertical-align:baseline;outline:none;}
+  /* 現在値は3桁分の固定領域で右寄せし、1桁・2桁でも /上限値の直前へ揃える。 */
+  .sl-stamina-current-display{display:inline-block;width:calc(3ch + 2px);font-weight:700;text-align:right;color:#ffb35e;font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;}
+  /* 手入力中も同じ3桁領域を使い、入力欄と後続の/上限値を安定させる。 */
+  .slcard.sl-inline-current .sl-stamina-current-display{visibility:hidden;width:calc(3ch + 2px);}
+  .slcard.sl-inline-current .sl-stamina-current-input{display:block;left:0;color:#ffb35e;}
+  /*
+   * 任意の数値表示用フォント（外部通信・追加ファイルなし）。
+   * 不要なら、このブロック全体だけを削除すれば従来の表示へ戻る。
+   * 日本語ラベル・名前・補助文には適用しない。
+   */
+  :root{--timer-pop-system-font:ui-rounded,"Arial Rounded MT Bold","Trebuchet MS",Roboto,system-ui,sans-serif;}
+  .tval,.gval,.slmain,
+  .tsub-cur,.tsub-max,.gsub .gsub-cur,.gsub .gsub-max,.sl-stamina-current-display,
+  .tsub-cur-input,.g-inline-field,.sl-stamina-current-input,
+  .sl-orb-full-display,.sl-inline-field.sl-orb-full-input,.orb-full-at,
+  .idle-clock,.stam-plan-clock,.gsub-clock,#sl-stamina-clock,.orb-sub-left{
+    font-family:var(--timer-pop-system-font);
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* 数値インライン入力の共通基準。キャレットの高さ・太さは文字サイズと行高に従うため、全タイマーで同じ値へ揃える。 */
+  .tsub-cur-input,.g-inline-field,.sl-stamina-current-input,.sl-inline-field.sl-orb-full-input{
+    font-family:"Hiragino Sans","Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
+    font-size:10px;line-height:11px;font-weight:700;caret-color:currentColor;outline:none;
+  }
+  /*
+   * スタミナ入力とオーブ時間入力は、入力・確定の挙動を変えずに点滅キャレットだけを隠す。
+   * 名前・ランクなどの文字入力欄には適用しない。
+   */
+  .tsub-cur-input,.g-inline-field,.sl-stamina-current-input,.sl-inline-field.sl-orb-full-input{caret-color:transparent;}
+  /* 現在値・上限値は数字の高さに合わせた11pxの枠なし部分置換に統一する。 */
+  .tsub-cur-input,.g-inline-field,.sl-stamina-current-input{height:11px;top:1px;}
+  /* オーブは時間入力の幅を保ちつつ、文字とキャレットの基準線だけ共通化する。 */
+  .sl-inline-field.sl-orb-full-input{height:14px;line-height:11px;}
+  /* 現在値の手入力は、通常表示の数字と同じ右端・基準線へ重ねる。 */
+  .tsub-cur-input,.g-inline-current-field{
+    width:calc(3ch + 1.5px);height:14px;top:1px;font-size:10px;line-height:14px;text-align:right;
+  }
+  .sl-stamina-current-input{
+    width:calc(3ch + 1.5px);height:13px;top:1px;font-size:9.5px;line-height:13px;text-align:right;
+  }
+
+  /* アビス現在値フィールド確定（共通ルールより後） */
+  #grid .abyss-stam-card .stam-cur-field{
+    position:static!important;left:auto!important;top:auto!important;
+    width:3.4ch!important;height:19px!important;
+    font-size:15px!important;line-height:19px!important;font-weight:800!important;
+    font-family:var(--timer-pop-system-font)!important;
+    text-align:right!important;padding:0!important;border:0!important;
+  }
+
+  /* 数値表示inputは通常時にカード操作を奪わず、編集時だけ有効にする。 */
+#gamesAll .g-always-current-field,#gamesAll .g-always-max-field,
+#gamesAll .sl-always-current-field,#gamesAll .sl-always-max-field{
+    display:inline-block!important;position:static!important;
+    height:var(--timer-card-sub-height)!important;margin:0;padding:0;border:0;background:transparent;outline:none;
+    box-sizing:border-box;font-family:var(--timer-pop-system-font);font-size:var(--timer-sub-font);line-height:var(--timer-card-sub-height);font-weight:800;
+  font-variant-numeric:tabular-nums;caret-color:transparent!important;pointer-events:none;vertical-align:baseline;
+  -webkit-appearance:none;appearance:none;
+  }
+  #gamesAll .g-always-current-field,#gamesAll .sl-always-current-field{width:calc(3ch + 1.5px);text-align:right;color:#ffb35e;}
+  #gamesAll .g-always-max-field,#gamesAll .sl-always-max-field{width:3ch;text-align:left;color:var(--stam-cur-c);}
+  #gamesAll .g-inline-current .g-always-current-field,#gamesAll .g-inline-max .g-always-max-field,
+  #sl-card-stamina.sl-inline-current .sl-always-current-field{pointer-events:auto;}
+  /* 名前・ランク・数値・オーブを含め、Androidの点滅キャレットは表示しない。 */
+  input,textarea{caret-color:transparent!important;}
+
+
+  /* STAR LEAP オーブ補助行: 共通レイアウト */
+  .slsub.orb-sub{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:2px;
+    min-width:0;
+    min-height:var(--timer-card-sub-height);
+    height:auto;
+    overflow:hidden;
+    text-overflow:clip;
+    white-space:nowrap;
+  }
+  .orb-sub-left{
+    display:inline-flex;
+    align-items:baseline;
+    gap:1px;
+    min-width:0;
+    flex:1 1 auto;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    color:var(--orb-next);
+    font-size:9px;
+    font-weight:700;
+    line-height:var(--timer-card-sub-height);
+  }
+  .orb-label{
+    flex:0 0 auto;
+    margin-right:1px;
+    font-size:7px;
+    font-weight:700;
+    line-height:var(--timer-card-sub-height);
+    letter-spacing:0;
+    opacity:.9;
+  }
+  .orb-sub-left::after{
+    content:"到達";
+    flex:0 0 2.5em;
+    font:800 10px/var(--timer-card-sub-height) var(--timer-pop-system-font);
+    letter-spacing:0;
+    text-align:left;
+    visibility:hidden;
+  }
+  .sl-orb-full-wrap{
+    display:inline-flex;
+    align-items:baseline;
+    justify-content:flex-end;
+    min-width:0;
+    margin-left:auto;
+    white-space:nowrap;
+    flex:0 0 auto;
+  }
+  .orb-full-at{
+    flex:0 0 auto;
+    margin-left:0;
+    color:var(--orb-full);
+    font-size:9px;
+    font-weight:700;
+    line-height:var(--timer-card-sub-height);
+    white-space:nowrap;
+  }
+
+  /* STAR LEAP オーブ補助行: 横4枠レイアウト */
+  #gamesAll .slcard.orb-card{padding:5px 5px 3px;min-width:0;}
+  #gamesAll .slcard .slsub.orb-sub{margin-top:3px;padding:0 1px;}
+  #gamesAll .slcard .orb-sub-left{font-size:9px;}
+  #gamesAll .slcard .orb-label{font-size:7px;}
+  #gamesAll .slcard .orb-full-at{font-size:9px;}
+
+  /* STAR LEAP オーブ補助行: 満タン・編集の特殊状態 */
+  .orb-sub-left.reached{color:var(--reach-orb);font-weight:800;}
+  .orb-sub-left.reached::after{visibility:visible;}
+  .slcard.sl-inline-orb .sl-orb-full-display,
+  .slcard.sl-inline-orb .orb-full-at{display:none;}
+  .slcard.sl-inline-orb .sl-orb-full-input{
+    display:inline-block;
+    position:relative;
+    width:34px;
+    min-width:34px;
+    max-width:36px;
+    height:12px;
+    margin:0;
+    padding:0 1px;
+    box-sizing:border-box;
+    border:1px solid #4a5a78;
+    border-radius:3px;
+    background:var(--bg-inset,#111);
+    color:var(--ink);
+    font-size:8px;
+    line-height:12px;
+    font-weight:700;
+    text-align:center;
+  }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="bar-left"><span class="bar-note">毎朝5:00更新</span></div>
+    <span class="daily-val" id="dailyDateDisplay">—</span>
+    <span class="daily-progress" id="dailyProgress"></span>
+  </div>
+  <div class="grid" id="grid" aria-label="ドットアビス全グループ"></div>
+  <div id="gamesAll" aria-label="Gジェネ・スターリープタイマー">
+    <div class="game-tab-panel" id="game-panel-g" aria-label="Gジェネ">
+      <div class="gsection"><div class="gwrap" id="gwrap"></div></div>
+    </div>
+    <div class="game-tab-panel" id="game-panel-sl" aria-label="スターリープ">
+      <div class="slsection"><div class="slwrap" id="slwrap"></div></div>
+    </div>
+  </div>
+  <div class="backdrop" id="backdrop" onclick="closeAllPanels()"></div>
+</div>
+<footer><span id="saveStamp">読み込み中…</span></footer>
+<script>
+const N = 6;
+const STAM_INTERVAL = 3 * 60 * 1000;
+const IDLE_DEFAULT_CAP_MS = 12 * 3600 * 1000;
+// ドットアビスの確認待ちは、画面外を押すまで維持し、再タップで確定する。
+// 秒表示を使わないため、開始時の見た目にも差が出る5分補正を使う。
+const IDLE_LEAD_MS = 5 * 60 * 1000;
+const URGENT_MS = 2 * 60 * 60 * 1000;
+const STAM_MAX_BASE = 240;
+const STAM_MAX_PER_LEVEL = 5;
+const RANK_MIN = 1;
+const RANK_MAX = 200;
+
+const STORAGE_KEY = 'dotabyss:unified:v1';
+
+const defaultSlot = () => ({
+  label: '',
+  rank: 1,
+  stamCurrent: 0, stamMax: 240, stamStart: null, stamRunning: false,
+  idleStart: null, idleCapMs: IDLE_DEFAULT_CAP_MS, idleRunning: false,
+  missionDone: false, weeklyDone: false
+});
+
+function stamMaxFromRank(rank){
+  const r = Math.max(RANK_MIN, Math.min(RANK_MAX, Math.floor(Number(rank) || 1)));
+  return Math.min(999, STAM_MAX_BASE + (r - 1) * STAM_MAX_PER_LEVEL);
+}
+function rankFromStamMax(max){
+  const m = Math.max(STAM_MAX_BASE, safeNum(max, STAM_MAX_BASE));
+  const r = 1 + Math.round((m - STAM_MAX_BASE) / STAM_MAX_PER_LEVEL);
+  return Math.max(RANK_MIN, Math.min(RANK_MAX, r));
+}
+
+// ---- Gジェネ ----
+const GN = 2;
+const G_STAM_INTERVAL = 5 * 60 * 1000;
+const G_RESET_HOUR = 1;
+const defaultGSlot = () => ({
+  label: '',
+  stamCurrent: 0, stamMax: 130, stamStart: null, stamRunning: false, missionDone: false
+});
+let gRefs = [];
+
+// ---- 幻想水滸伝 STAR LEAP ----
+const SL_STAM_MAX = 80;
+const SL_STAM_INTERVAL = 12 * 60 * 1000;
+const SL_ORB_MAX = 4;
+const SL_ORB_INTERVAL = 6 * 60 * 60 * 1000;
+const defaultSLTimer = () => ({ current: 0, start: null, running: false });
+const defaultSLState = () => ({ stamina: defaultSLTimer(), orb: defaultSLTimer() });
+let slEdit = null;
+let slRefs = {};
+
+let state = { slots: Array.from({ length: N }, defaultSlot), dailyDate: '', weeklyDate: '', g: { slots: Array.from({ length: GN }, defaultGSlot), dailyDate: '' }, sl: defaultSLState() };
+
+let storageOk = true;
+let textEditIdx = -1;
+let refs = [];
+let tickId = null;
+// 単一の自己スケジュール型描画ループの世代。古い予約済みコールバックを無効化する。
+let tickGeneration = 0;
+// 1操作内で複数clickが起きても、次フレームの復旧は1回だけにまとめる。
+let interactionTickRecoveryFrame = 0;
+let resetCheckTimer = null;
+let swRegistrationScheduled = false;
+let armedIdle = {};
+// ドットアビスのスタミナ操作は同時に1枚だけ開けるため、編集状態を単一値で保持する。
+let stamEdit = null;
+// 手入力中に同じタイマーをタップした際、そのタップは確定操作として一度だけ消費する。
+let pendingManualStamTap = -1;
+// 長押しの終了直後にブラウザが発火する同一カードのclickだけを短時間で消費する。
+// 新しいタップ開始時には必ず解除するため、次の意図的な操作は止めない。
+let pendingLongPressClick = null;
+// 数値インライン編集の状態定数。入口操作はゲーム別のまま、状態遷移だけを明文化する。
+const DOT_EDIT_PHASE = Object.freeze({ REFERENCE: 'reference', MANUAL: 'manual' });
+const G_EDIT_MODE = Object.freeze({ ARMED: 'armed', CURRENT: 'current', MAX: 'max' });
+let labelSaveTimer = null;
+let lastProgressSig = '';
+let lastDailyLabel = '';
+let lastIdleQuickTap = { index: -1, at: 0 };
+
+function dayStrAt(resetHour){
+  const d = new Date();
+  if (d.getHours() < resetHour) d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function gameDayStr(){ return dayStrAt(5); }
+function weekStrAt(resetHour){
+  const d = new Date();
+  if (d.getHours() < resetHour) d.setDate(d.getDate() - 1);
+  const mondayOffset = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - mondayOffset);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function formatDateJP(iso){
+  if (!iso) return '—';
+  const p = iso.split('-');
+  if (p.length !== 3) return iso;
+  return p[0] + '年' + Number(p[1]) + '月' + Number(p[2]) + '日';
+}
+function safeNum(v, fb){ if (v === null || v === undefined || v === '') return fb; const n = Number(v); return Number.isFinite(n) ? n : fb; }
+function formatClock(ts){
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+// 小さい予定表示は時刻だけにし、到達後の主表示だけに「到達」を付ける。
+function formatPlanClock(ts){ return ts ? formatClock(ts) : ''; }
+// Gジェネ・スターリープの分単位表示用。残り時間を過小に見せないよう切り上げる。
+function formatGameMinute(ms){
+  ms = Math.max(0, safeNum(ms, 0));
+  const totalMinutes = Math.max(1, Math.ceil(ms / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours + ':' + String(minutes).padStart(2, '0');
+}
+function escapeHtml(s){
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function setText(el, text){
+  if (!el) return;
+  if (el.dataset && el.dataset._h !== undefined) delete el.dataset._h;
+  // 常時表示の現在値inputは value を更新（編集フォーカス中は上書きしない）
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+    if (document.activeElement === el) return;
+    const v = text == null ? '' : String(text);
+    if (el.value !== v) el.value = v;
+    return;
+  }
+  if (el.textContent !== text) el.textContent = text;
+}
+// 時刻値と接尾辞は固定DOMへ差分テキストだけを流し込み、毎秒のinnerHTML差替えを避ける。
+function setClockParts(timeEl, suffixEl, timeText, suffixText){
+  setText(timeEl, timeText || '');
+  setText(suffixEl, suffixText || '');
+}
+function setClass(el, cls){ if (el && el.className !== cls) el.className = cls; }
+function setAttr(el, name, value){
+  if (!el) return;
+  const next = String(value);
+  if (el.getAttribute(name) !== next) el.setAttribute(name, next);
+}
+function setVisible(el, visible){
+  if (!el) return;
+  const next = visible ? '' : 'none';
+  if (el.style.display !== next) el.style.display = next;
+}
+function clampInt(value, min, max, fallback){
+  const parsed = parseInt(String(value == null ? '' : value).trim(), 10);
+  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback;
+}
+function setLongPressDisplay(disp, hitClass, text){
+  if (!disp) return;
+  const hit = document.createElement('span');
+  hit.className = hitClass;
+  hit.textContent = text;
+  disp.replaceChildren(hit);
+}
+function restoreLongPressEdit(input, disp, inputValue, displayValue, hitClass, empty){
+  if (input) { input.classList.remove('editing'); input.value = inputValue; }
+  if (!disp) return;
+  setVisible(disp, true);
+  setLongPressDisplay(disp, hitClass, displayValue);
+  disp.classList.toggle('empty', !!empty);
+}
+function focusEditAtEnd(input){
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  const place = () => { try { input.setSelectionRange(input.value.length, input.value.length); } catch(e){} };
+  place(); setTimeout(place, 0); setTimeout(place, 40);
+}
+function setSaveStamp(text){
+  const el = document.getElementById('saveStamp');
+  if (el) el.textContent = text;
+}
+
+function ensureDailyDate(){
+  const today = gameDayStr();
+  if (state.dailyDate !== today) {
+    state.dailyDate = today;
+    state.slots.forEach(s => { s.missionDone = false; });
+    for (let i = 0; i < refs.length; i++) {
+      if (refs[i] && refs[i].mark) { refs[i].mark.classList.remove('show'); refs[i].mark.setAttribute('aria-pressed', 'false'); }
+    }
+    lastProgressSig = '';
+    saveState();
+  }
+  const label = formatDateJP(state.dailyDate);
+  if (label !== lastDailyLabel) {
+    lastDailyLabel = label;
+    const el = document.getElementById('dailyDateDisplay');
+    if (el) el.textContent = label;
+  }
+  renderDailyProgress();
+}
+
+function ensureWeeklyDate(){
+  const week = weekStrAt(5);
+  if (state.weeklyDate !== week) {
+    state.weeklyDate = week;
+    state.slots.forEach(s => { s.weeklyDone = false; });
+    for (let i = 0; i < refs.length; i++) {
+      if (refs[i] && refs[i].weeklyMark) refs[i].weeklyMark.classList.remove('show');
+    }
+    saveState();
+  }
+}
+
+function renderDailyProgress(){
+  const el = document.getElementById('dailyProgress');
+  if (!el) return;
+  let sig = '', count = 0;
+  for (let k = 0; k < N; k++) {
+    const done = !!state.slots[k].missionDone;
+    sig += done ? '1' : '0';
+    if (done) count++;
+  }
+  if (sig === lastProgressSig) return;
+  lastProgressSig = sig;
+  if (count >= N) {
+    el.innerHTML = '<span class="complete-badge">COMPLETE</span>';
+    return;
+  }
+  let html = '';
+  for (let k = 0; k < N; k++) {
+    const done = sig[k] === '1';
+    html += '<span class="pdot d' + k + (done ? ' filled' : '') + '">' + (done ? '✓' : '') + '</span>';
+  }
+  el.innerHTML = html;
+}
+
+function parseStoredState(){
+  if (typeof localStorage === 'undefined') throw new Error('no localStorage');
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const result = { slots: null, dailyDate: gameDayStr(), weeklyDate: weekStrAt(5), g: { slots: null, dailyDate: dayStrAt(G_RESET_HOUR) }, sl: defaultSLState() };
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    if (parsed.slots && Array.isArray(parsed.slots) && parsed.slots.length === N) {
+      const now = Date.now();
+      result.slots = parsed.slots.map(s => {
+        const o = defaultSlot();
+        if (!s || typeof s !== 'object') return o;
+        o.label = typeof s.label === 'string' ? s.label : '';
+        if (s.rank != null && Number.isFinite(Number(s.rank))) {
+          o.rank = Math.max(RANK_MIN, Math.min(RANK_MAX, Math.floor(Number(s.rank))));
+          o.stamMax = stamMaxFromRank(o.rank);
+        } else {
+          o.stamMax = Math.max(1, Math.min(999, safeNum(s.stamMax, STAM_MAX_BASE)));
+          o.rank = rankFromStamMax(o.stamMax);
+          o.stamMax = stamMaxFromRank(o.rank);
+        }
+        o.stamCurrent = Math.max(0, Math.min(o.stamMax, safeNum(s.stamCurrent, 0)));
+        const ss = safeNum(s.stamStart, null);
+        if (ss && ss > 0 && ss < Date.now() + 60000 && s.stamRunning) {
+          const elapsed = Math.max(0, now - ss);
+          const recovered = Math.floor(elapsed / STAM_INTERVAL);
+          o.stamCurrent = Math.min(o.stamMax, o.stamCurrent + recovered);
+          o.stamStart = ss + recovered * STAM_INTERVAL;
+          o.stamRunning = true;
+          if (o.stamCurrent >= o.stamMax) {
+            o.stamCurrent = o.stamMax;
+            o.stamStart = ss;
+          }
+        }
+        o.idleCapMs = safeNum(s.idleCapMs, IDLE_DEFAULT_CAP_MS);
+        const is = safeNum(s.idleStart, null);
+        if (is && is > 0 && is < Date.now() + 60000 && s.idleRunning) {
+          o.idleStart = is;
+          o.idleRunning = true;
+        }
+        o.missionDone = !!s.missionDone;
+        o.weeklyDone = !!s.weeklyDone;
+        return o;
+      });
+    }
+    result.dailyDate = typeof parsed.dailyDate === 'string' ? parsed.dailyDate : gameDayStr();
+    result.weeklyDate = typeof parsed.weeklyDate === 'string' ? parsed.weeklyDate : weekStrAt(5);
+    result.g = result.g || { slots: null, dailyDate: dayStrAt(G_RESET_HOUR) };
+    if (parsed.g && Array.isArray(parsed.g.slots) && parsed.g.slots.length === GN) {
+      const now2 = Date.now();
+      result.g.slots = parsed.g.slots.map(s => {
+        const o = defaultGSlot();
+        if (!s || typeof s !== 'object') return o;
+        o.label = typeof s.label === 'string' ? s.label : '';
+        o.stamMax = Math.max(1, Math.min(999, safeNum(s.stamMax, 130)));
+        o.stamCurrent = Math.max(0, Math.min(o.stamMax, safeNum(s.stamCurrent, 0)));
+        const ss = safeNum(s.stamStart, null);
+        if (ss && ss > 0 && ss < Date.now() + 60000 && s.stamRunning) {
+          const elapsed = Math.max(0, now2 - ss);
+          const recovered = Math.floor(elapsed / G_STAM_INTERVAL);
+          o.stamCurrent = Math.min(o.stamMax, o.stamCurrent + recovered);
+          o.stamStart = ss + recovered * G_STAM_INTERVAL;
+          o.stamRunning = true;
+          if (o.stamCurrent >= o.stamMax) { o.stamCurrent = o.stamMax; o.stamStart = ss; }
+        }
+        o.missionDone = !!s.missionDone;
+        return o;
+      });
+      result.g.dailyDate = typeof parsed.g.dailyDate === 'string' ? parsed.g.dailyDate : dayStrAt(G_RESET_HOUR);
+    }
+
+    if (parsed.sl && typeof parsed.sl === 'object') {
+      const readSLTimer = (source, max) => {
+        const out = defaultSLTimer();
+        if (!source || typeof source !== 'object') return out;
+        out.current = Math.max(0, Math.min(max, safeNum(source.current, 0)));
+        const start = safeNum(source.start, null);
+        if (source.running && start && start > 0 && start < Date.now() + 60000) {
+          out.start = start;
+          out.running = true;
+        }
+        return out;
+      };
+      result.sl.stamina = readSLTimer(parsed.sl.stamina, SL_STAM_MAX);
+      result.sl.orb = readSLTimer(parsed.sl.orb, SL_ORB_MAX);
+    }
+  }
+  return result;
+}
+
+function loadState(){
+  try {
+    const parsed = parseStoredState();
+    if (parsed.slots) state.slots = parsed.slots;
+    state.dailyDate = parsed.dailyDate;
+    state.weeklyDate = parsed.weeklyDate;
+    if (parsed.g && parsed.g.slots) state.g.slots = parsed.g.slots;
+    if (parsed.g) state.g.dailyDate = parsed.g.dailyDate;
+    if (parsed.sl) state.sl = parsed.sl;
+  } catch (e) {
+    storageOk = false;
+    setSaveStamp('このブラウザでは保存機能が使えません');
+    state.dailyDate = gameDayStr();
+  }
+  build();
+  render();
+  // 進行中のタイマーがある場合だけ、毎秒描画を開始する。
+  startTicking();
+  scheduleResetCheck();
+  if (storageOk) setSaveStamp('読み込み完了');
+}
+
+function saveState(){
+  if (!storageOk) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const now = new Date();
+    const p = n => String(n).padStart(2, '0');
+    setSaveStamp('保存済み ' + p(now.getHours()) + ':' + p(now.getMinutes()) + ':' + p(now.getSeconds()));
+  } catch (e) {
+    setSaveStamp('保存に失敗しました');
+  }
+}
+
+function getStamInfo(s, now){
+  if (!s.stamRunning || !s.stamStart) {
+    const cur = s.stamCurrent;
+    return { current: cur, fullIn: null, fullAt: null, isFull: cur >= s.stamMax };
+  }
+  const elapsed = Math.max(0, now - s.stamStart);
+  const recovered = Math.floor(elapsed / STAM_INTERVAL);
+  const current = Math.min(s.stamMax, s.stamCurrent + recovered);
+  if (current >= s.stamMax) {
+    const need = Math.max(0, s.stamMax - s.stamCurrent);
+    const fullAt = s.stamStart + need * STAM_INTERVAL;
+    return { current: s.stamMax, fullIn: 0, fullAt: fullAt, isFull: true };
+  }
+  const nextIn = STAM_INTERVAL - (elapsed % STAM_INTERVAL);
+  const need = s.stamMax - current;
+  const fullIn = (need - 1) * STAM_INTERVAL + nextIn;
+  return { current, fullIn, fullAt: now + fullIn, isFull: false };
+}
+
+function getGStamInfo(s, now){
+  if (!s.stamRunning || !s.stamStart) {
+    const cur = s.stamCurrent;
+    return { current: cur, fullIn: null, fullAt: null, isFull: cur >= s.stamMax };
+  }
+  const elapsed = Math.max(0, now - s.stamStart);
+  const recovered = Math.floor(elapsed / G_STAM_INTERVAL);
+  const current = Math.min(s.stamMax, s.stamCurrent + recovered);
+  if (current >= s.stamMax) {
+    const need = Math.max(0, s.stamMax - s.stamCurrent);
+    const fullAt = s.stamStart + need * G_STAM_INTERVAL;
+    return { current: s.stamMax, fullIn: 0, fullAt: fullAt, isFull: true };
+  }
+  const nextIn = G_STAM_INTERVAL - (elapsed % G_STAM_INTERVAL);
+  const need = s.stamMax - current;
+  const fullIn = (need - 1) * G_STAM_INTERVAL + nextIn;
+  return { current, fullIn, fullAt: now + fullIn, isFull: false };
+}
+
+function getSLTimerInfo(timer, max, interval, now){
+  if (!timer.running || !timer.start) {
+    const current = timer.current;
+    return { current, nextIn: null, fullIn: null, fullAt: null, isFull: current >= max };
+  }
+  const elapsed = Math.max(0, now - timer.start);
+  const recovered = Math.floor(elapsed / interval);
+  const current = Math.min(max, timer.current + recovered);
+  if (current >= max) {
+    const need = Math.max(0, max - timer.current);
+    const fullAt = timer.start + need * interval;
+    return { current: max, nextIn: 0, fullIn: 0, fullAt, isFull: true };
+  }
+  const nextIn = interval - (elapsed % interval);
+  const need = max - current;
+  const fullIn = (need - 1) * interval + nextIn;
+  return { current, nextIn, fullIn, fullAt: now + fullIn, isFull: false };
+}
+
+function getIdleInfo(s, now){
+  if (!s.idleRunning || !s.idleStart) return { display: '—:—', meta: '未開始', isFull: false, remainingMs: null };
+  const cap = s.idleCapMs || IDLE_DEFAULT_CAP_MS;
+  const elapsed = Math.max(0, now - s.idleStart);
+  const remaining = Math.max(0, cap - elapsed);
+  const isFull = remaining <= 0;
+  const fullAt = s.idleStart + cap;
+  return {
+    display: isFull ? 'MAX' : formatGameMinute(remaining),
+    meta: isFull ? formatClock(fullAt) + ' 到達' : formatClock(fullAt) + ' 満タン',
+    clockTxt: formatClock(fullAt),
+    suffix: isFull ? ' 到達' : ' 満タン',
+    isFull,
+    remainingMs: remaining
+  };
+}
+
+// 実カードとタブ表示で同じ放置報酬の注意状態を使う。満タン到達後も赤字を維持する。
+function getIdleAlertClass(s, idle){
+  if (!idle || !s.idleRunning) return '';
+  return (idle.isFull || (idle.remainingMs != null && idle.remainingMs < URGENT_MS)) ? 'urgent' : '';
+}
+
+function stamRemainderAfter40s(current){
+  const c = Math.max(0, Math.floor(Number(current) || 0));
+  return c % 40;
+}
+
+function getLiveStamCurrent(i){
+  const s = state.slots[i];
+  return s.stamRunning ? getStamInfo(s, Date.now()).current : s.stamCurrent;
+}
+// 進行中の3分サイクルだけ、更新後にも次回回復までの残り時間を保つ。
+function getStamCycleStartAfterUpdate(s, now){
+  if (!s.stamRunning || !s.stamStart) return now;
+  const info = getStamInfo(s, now);
+  if (info.isFull) return now;
+  const elapsed = Math.max(0, now - s.stamStart);
+  return now - (elapsed % STAM_INTERVAL);
+}
+function applyStamCurrentPreservingCycle(s, current, now){
+  const start = getStamCycleStartAfterUpdate(s, now);
+  s.stamCurrent = clampInt(current, 0, s.stamMax, 0);
+  s.stamStart = start;
+  s.stamRunning = true;
+}
+
+function clearStamEdit(){
+  if (!stamEdit) return;
+  const i = stamEdit.index;
+  const r = refs[i];
+  if (r && r.card) r.card.classList.remove('stam-preview');
+  if (r && r.stamSub) r.stamSub.classList.remove('stam-manual-editing');
+  if (r && r.directCurEl) {
+    r.directCurEl.readOnly = true;
+    r.directCurEl.tabIndex = -1;
+    try { r.directCurEl.blur(); } catch (_) {}
+  }
+  stamEdit = null;
+}
+
+// 1回目: 40消費後の参考値を表示する。画面外で取消、再タップで確定する。
+function beginStamReference(i){
+  const r = refs[i];
+  if (!r) return;
+  clearStamEdit();
+  const live = getLiveStamCurrent(i);
+  stamEdit = { index: i, value: stamRemainderAfter40s(live), phase: DOT_EDIT_PHASE.REFERENCE };
+  if (r.card) r.card.classList.add('stam-preview');
+  syncIdleConfirmBackdrop();
+  render();
+}
+
+// スタミナタイマー領域の長押しで、任意値を空欄から直接入力する。
+function beginStamManualInput(i){
+  const r = refs[i];
+  if (!r || !r.directCurEl || !r.stamSub) return;
+  if (Object.keys(armedIdle).length > 0) {
+    disarmAllIdle();
+    return;
+  }
+  let edit = stamEdit;
+  if (!edit || edit.index !== i) {
+    clearStamEdit();
+    const live = getLiveStamCurrent(i);
+    edit = { index: i, value: stamRemainderAfter40s(live), phase: DOT_EDIT_PHASE.MANUAL, manualOnly: true };
+    stamEdit = edit;
+    if (r.card) r.card.classList.add('stam-preview');
+  } else {
+    edit.phase = DOT_EDIT_PHASE.MANUAL;
+    edit.manualOnly = true;
+  }
+  const input = r.directCurEl;
+  input.value = '';
+  input.readOnly = false;
+  input.tabIndex = 0;
+  r.stamSub.classList.add('stam-manual-editing');
+  syncIdleConfirmBackdrop();
+  // 同じ要素のまま編集するので、表示とのズレが起きない
+  requestAnimationFrame(() => {
+    try {
+      input.focus({ preventScroll: true });
+      if (typeof input.select === 'function') input.select();
+    } catch (_) {}
+  });
+}
+
+function commitStamEdit(rawValue){
+  if (!stamEdit) return;
+  const { index: i, value, manualOnly } = stamEdit;
+  const s = state.slots[i];
+  const raw = rawValue == null ? '' : String(rawValue).trim();
+  // 長押しから開いた手入力を空欄のまま閉じた場合は、値を変えずに取り消す。
+  if (raw === '' && manualOnly) {
+    clearStamEdit();
+    syncIdleConfirmBackdrop();
+    render();
+    return;
+  }
+  let next = value;
+  if (raw !== '') next = clampInt(raw, 0, s.stamMax, next);
+  applyStamCurrentPreservingCycle(s, next, Date.now());
+  clearStamEdit();
+  saveState();
+  syncIdleConfirmBackdrop();
+  render();
+  startTicking();
+}
+
+// 画面外タップ時は、1回目の参考表示なら取消、手入力なら確定する。
+function resolveStamEditFromOutside(){
+  if (!stamEdit) return;
+  if (stamEdit.phase === DOT_EDIT_PHASE.REFERENCE) {
+    clearStamEdit();
+    render();
+    syncIdleConfirmBackdrop();
+    return;
+  }
+  commitStamEdit();
+}
+
+function build(){
+  const grid = document.getElementById('grid');
+  let html = '';
+  for (let i = 0; i < N; i++) {
+    const s = state.slots[i];
+    const groupIndex = Math.floor(i / 2);
+    const group = 'g' + groupIndex;
+    const row = groupIndex + 1;
+    const stamColumn = i % 2 ? 3 : 1;
+    const idleColumn = i % 2 ? 4 : 2;
+    const cardVars = '--abyss-row:' + row + ';--abyss-stam-column:' + stamColumn + ';--abyss-idle-column:' + idleColumn + ';';
+    html +=
+      '<div class="card-row">' +
+        '<div class="abyss-timers">' +
+          '<div class="card abyss-stam-card ' + group + '" id="card-' + i + '" style="' + cardVars + '" data-action="card" data-idx="' + i + '" aria-expanded="false">' +
+            '<div class="row-top">' +
+              '<span class="name-disp' + (s.label ? '' : ' empty') + '" id="name-disp-' + i + '"><span class="name-lp-hit">' +
+              (s.label ? escapeHtml(s.label) : ('スロット ' + (i + 1))) + '</span></span>' +
+              '<input class="name-input" id="name-' + i + '" value="' + escapeHtml(s.label) + '" placeholder="スロット ' + (i + 1) + '" inputmode="text" enterkeyhint="done" aria-label="スロット' + (i + 1) + 'の名前">' +
+              '<span class="rank-disp" id="rank-disp-' + i + '"><span class="rank-lp-hit">Lv.' + (s.rank || 1) + '</span></span>' +
+              '<input class="rank-input" id="rank-' + i + '" value="' + (s.rank || 1) + '" inputmode="numeric" enterkeyhint="done" aria-label="プレイヤレベル">' +
+            '</div>' +
+            '<div class="tblock tblock-stam">' +
+              '<div class="ttag stam stam-plan-tag" aria-label="全回復予定時刻"><span class="idle-clock stam-plan-clock" id="stam-plan-' + i + '"></span></div>' +
+              '<div class="tval stam" id="stam-val-' + i + '">—:—</div>' +
+              '<div class="tsub stam-curmax" id="stam-sub-' + i + '">' +
+                '<input class="tsub-cur-input stam-cur-field" type="text" id="stam-direct-cur-' + i + '" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" readonly tabindex="-1" aria-label="スロット' + (i + 1) + 'の現在スタミナ">' +
+                '<span class="tsub-sep" id="stam-subsep-' + i + '">/</span>' +
+                '<span class="tsub-max" id="stam-submax-' + i + '"></span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card abyss-idle-card ' + group + ' tblock-idle" id="idle-block-' + i + '" style="' + cardVars + '" data-idle-receive="true" data-idx="' + i + '" role="button" aria-label="放置報酬。1回タップで確認、受取">' +
+            '<span class="idle-mark daily-mark ' + group + (s.missionDone ? ' show' : '') + '" id="daily-mark-' + i + '" aria-hidden="true">✔</span>' +
+            '<span class="weekly-mark' + (s.weeklyDone ? ' show' : '') + '" id="weekly-mark-' + i + '" aria-hidden="true">✦</span>' +
+            '<div class="ttag idle idle-plan-tag" aria-label="放置報酬の予定時刻"><span class="idle-clock" id="idle-subclock-time-' + i + '"></span><span id="idle-subclock-suffix-' + i + '"></span></div>' +
+            '<div class="tval idle" id="idle-val-' + i + '">—:—</div>' +
+            '<div class="tsub idle-meta idle-bottom-spacer" id="idle-sub-' + i + '" aria-hidden="true"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+  grid.innerHTML = html;
+
+  cacheRefs();
+  buildG();
+  buildSL();
+}
+
+function buildG(){
+  const wrap = document.getElementById('gwrap');
+  if (!wrap) return;
+  let html = '';
+  for (let i = 0; i < GN; i++) {
+    const s = state.g.slots[i];
+    const label = s.label ? escapeHtml(s.label) : ('G' + (i + 1));
+    html +=
+      '<div class="gcard" id="gcard-' + i + '" data-idx="' + i + '">' +
+        '<div class="grow-top">' +
+          '<span class="gname-disp' + (s.label ? '' : ' empty') + '" id="g-name-disp-' + i + '"><span class="gname-lp-hit">' + label + '</span></span>' +
+          '<input class="gname-input" id="g-name-' + i + '" value="' + escapeHtml(s.label || '') + '" inputmode="text" enterkeyhint="done" aria-label="G' + (i + 1) + 'の名前">' +
+          '<button type="button" class="gmark' + (s.missionDone ? ' show' : '') + '" id="g-mark-' + i + '" data-idx="' + i + '" tabindex="-1" aria-label="G' + (i + 1) + 'のデイリー完了。長押しで切替" aria-pressed="' + (s.missionDone ? 'true' : 'false') + '">✓</button>' +
+        '</div>' +
+        '<div class="gval" id="g-val-' + i + '">—:—</div>' +
+        '<div class="gsub" id="g-sub-' + i + '">' +
+          '<input class="g-inline-field g-inline-current-field g-always-current-field" type="text" id="g-cur-' + i + '" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" readonly tabindex="-1" aria-label="G' + (i + 1) + 'の現在スタミナ">' +
+          '<span class="gsub-sep" id="g-subsep-' + i + '">/</span>' +
+          '<input class="g-inline-field g-inline-max-field g-always-max-field" type="text" id="g-max-input-' + i + '" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" readonly tabindex="-1" aria-label="G' + (i + 1) + 'のスタミナ上限">' +
+          '<span class="gsub-clock" id="g-subclock-' + i + '"></span>' +
+        '</div>' +
+      '</div>';
+  }
+  wrap.innerHTML = html;
+  cacheRefsG();
+}
+
+function cacheRefsG(){
+  gRefs = [];
+  for (let i = 0; i < GN; i++) {
+    gRefs.push({
+      card: document.getElementById('gcard-' + i),
+      val: document.getElementById('g-val-' + i),
+      subCur: document.getElementById('g-cur-' + i),
+      subMax: document.getElementById('g-max-input-' + i),
+      subClock: document.getElementById('g-subclock-' + i),
+      mark: document.getElementById('g-mark-' + i)
+    });
+  }
+}
+
+function buildSL(){
+  const wrap = document.getElementById('slwrap');
+  if (!wrap) return;
+  wrap.innerHTML =
+    '<div class="slcard stam-card" id="sl-card-stamina" data-slaction="card" data-sltype="stamina">' +
+      '<div class="slhead"><span class="slname">討伐依頼</span></div>' +
+      '<div class="slmain" id="sl-stamina-main">—:—</div>' +
+      '<div class="slsub sl-stamina-sub" id="sl-stamina-sub"><input class="sl-inline-field sl-stamina-current-input sl-always-current-field" id="sl-stamina-current-input" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" readonly tabindex="-1" aria-label="現在のスタミナ"><span class="sl-stamina-sep">/</span><input class="sl-inline-field sl-stamina-max-input sl-always-max-field" id="sl-stamina-max-input" type="text" readonly tabindex="-1" aria-label="スタミナ上限"><span id="sl-stamina-clock"></span></div>' +
+    '</div>' +
+    '<div class="slcard orb-card" id="sl-card-orb" data-slaction="card" data-sltype="orb">' +
+      '<div class="slhead"><span class="slname">御大樹の恵み</span></div>' +
+      '<div class="slmain slorbs" id="sl-orb-main">○○○○</div>' +
+      '<div class="slsub orb-sub"><span class="orb-sub-left" id="sl-orb-next"></span><span class="sl-orb-full-wrap"><span class="sl-orb-full-display" id="sl-orb-full-display"></span><input class="sl-inline-field sl-orb-full-input" id="sl-orb-full-input" type="text" inputmode="numeric" pattern="[0-9:]*" enterkeyhint="done" aria-label="オーブ全回復までの残り時間。数字は4桁まで。342、1800、または18:00で入力"></span><span class="orb-full-at" id="sl-orb-full-at"></span></div>' +
+    '</div>';
+  slRefs = {
+    stamina: { card: document.getElementById('sl-card-stamina'), main: document.getElementById('sl-stamina-main'), current: document.getElementById('sl-stamina-current-input'), max: document.getElementById('sl-stamina-max-input'), clock: document.getElementById('sl-stamina-clock'), input: document.getElementById('sl-stamina-current-input'), maxInput: document.getElementById('sl-stamina-max-input') },
+    orb: { card: document.getElementById('sl-card-orb'), main: document.getElementById('sl-orb-main'), next: document.getElementById('sl-orb-next'), full: document.getElementById('sl-orb-full-display'), fullAt: document.getElementById('sl-orb-full-at'), input: document.getElementById('sl-orb-full-input') }
+  };
+}
+function getSLConfig(type){
+  return type === 'orb'
+    ? { timer: state.sl.orb, max: SL_ORB_MAX, interval: SL_ORB_INTERVAL }
+    : { timer: state.sl.stamina, max: SL_STAM_MAX, interval: SL_STAM_INTERVAL };
+}
+
+function normalizeSLTimer(type, now){
+  const cfg = getSLConfig(type);
+  const timer = cfg.timer;
+  if (!timer.running || !timer.start) return getSLTimerInfo(timer, cfg.max, cfg.interval, now);
+  const elapsed = Math.max(0, now - timer.start);
+  const recovered = Math.floor(elapsed / cfg.interval);
+  if (recovered > 0) {
+    timer.current = Math.min(cfg.max, timer.current + recovered);
+    timer.start += recovered * cfg.interval;
+  }
+  if (timer.current >= cfg.max) {
+    timer.current = cfg.max;
+    timer.running = false;
+    timer.start = null;
+  }
+  return getSLTimerInfo(timer, cfg.max, cfg.interval, now);
+}
+
+function formatSLFullRecoveryInput(ms){
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+  return Math.floor(totalMinutes / 60) + ':' + String(totalMinutes % 60).padStart(2, '0');
+}
+
+function parseSLFullRecoveryInput(value){
+  const raw = String(value || '').trim().replace(/：/g, ':');
+  let hours, minutes;
+  if (raw.includes(':')) {
+    const parts = raw.split(':');
+    // H:MMのみを許容し、秒を含むH:MM:SSは受け付けない。
+    if (parts.length !== 2 || parts.some(p => !/^\d+$/.test(p))) return null;
+    hours = Number(parts[0]);
+    minutes = Number(parts[1]);
+  } else if (/^\d+$/.test(raw)) {
+    // 数字のみは1〜2桁を分、3桁以上をHMM/HHMMとして読む。
+    // 入力欄側で数字を4桁に打ち止めるため、ここでは重複した桁数拒否を持たない。
+    // 例: 42 → 42分、342 → 3時間42分、1800 → 18時間00分。
+    if (raw.length <= 2) {
+      hours = 0;
+      minutes = Number(raw);
+    } else {
+      hours = Number(raw.slice(0, -2));
+      minutes = Number(raw.slice(-2));
+    }
+  } else {
+    return null;
+  }
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || minutes < 0 || minutes > 59) return null;
+  const ms = (hours * 3600 + minutes * 60) * 1000;
+  if (ms < 0 || ms > SL_ORB_MAX * SL_ORB_INTERVAL) return null;
+  return ms;
+}
+function placeCaretAtEnd(el){
+  requestAnimationFrame(() => {
+    try {
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+    } catch (e) {}
+  });
+}
+
+function slClearEdit(){
+  if (!slEdit) return;
+  Object.keys(slRefs).forEach(key => {
+    const r = slRefs[key];
+    if (!r || !r.card) return;
+    r.card.classList.remove('sl-inline-active', 'sl-inline-current', 'sl-inline-orb');
+    if (r.input) {
+      r.input.value = '';
+      r.input.readOnly = true;
+      r.input.tabIndex = -1;
+    }
+  });
+  slEdit = null;
+  renderSL();
+  requestAnimationFrame(renderSL);
+  syncIdleConfirmBackdrop();
+}
+function closeSLCard(){ slClearEdit(); }
+function slArm(type){
+  if (slEdit) { slClearEdit(); return; }
+  const r = slRefs[type];
+  if (!r || !r.card) return;
+  slEdit = { type, mode: 'armed' };
+  r.card.classList.add('sl-inline-active');
+  syncIdleConfirmBackdrop();
+}
+function slBeginEdit(type){
+  if (slEdit) slClearEdit();
+  const r = slRefs[type];
+  if (!r || !r.card || !r.input) return;
+  slEdit = { type, mode: 'input' };
+  r.card.classList.add('sl-inline-active', type === 'orb' ? 'sl-inline-orb' : 'sl-inline-current');
+  r.input.readOnly = false;
+  r.input.tabIndex = 0;
+  r.input.value = '';
+  syncIdleConfirmBackdrop();
+  // ドットアビス／Gジェネと同じ共通フォーカス補助を使い、端末差なく入力位置を整える。
+  focusEditAtEnd(r.input);
+}
+function slCommit(){
+  if (!slEdit || slEdit.mode !== 'input') return;
+  const type = slEdit.type;
+  const cfg = getSLConfig(type);
+  const r = slRefs[type];
+  const raw = r && r.input ? String(r.input.value || '').trim() : '';
+  const now = Date.now();
+  let changed = false;
+  if (type === 'stamina') {
+    const value = clampInt(raw, 0, cfg.max, null);
+    if (value !== null) {
+      cfg.timer.current = value;
+      cfg.timer.running = value < cfg.max;
+      cfg.timer.start = cfg.timer.running ? now : null;
+      changed = true;
+    }
+  } else {
+    const fullIn = parseSLFullRecoveryInput(raw);
+    if (fullIn !== null) {
+      const missing = fullIn === 0 ? 0 : Math.ceil(fullIn / cfg.interval);
+      const current = cfg.max - missing;
+      const nextIn = fullIn === 0 ? 0 : fullIn - (missing - 1) * cfg.interval;
+      cfg.timer.current = current;
+      if (current >= cfg.max) {
+        cfg.timer.running = false;
+        cfg.timer.start = null;
+      } else {
+        cfg.timer.running = true;
+        cfg.timer.start = now - (cfg.interval - nextIn);
+      }
+      changed = true;
+    }
+  }
+  slClearEdit();
+  if (changed) saveState();
+  renderSL();
+  if (changed) startTicking();
+}
+function slCommitOutside(){
+  if (!slEdit) return;
+  if (slEdit.mode === 'armed') slClearEdit();
+  else slCommit();
+}
+function renderSL(){
+  if (!slRefs.stamina || !slRefs.orb) return;
+  const now = Date.now();
+  const stamCfg = getSLConfig('stamina');
+  const orbCfg = getSLConfig('orb');
+  const stamina = getSLTimerInfo(stamCfg.timer, stamCfg.max, stamCfg.interval, now);
+  const orb = getSLTimerInfo(orbCfg.timer, orbCfg.max, orbCfg.interval, now);
+
+  // 満タン時は Gジェネ／ドットアビスと同じ「時刻 + 到達」
+  let slStamMain;
+  if (stamina.isFull) {
+    const at = stamina.fullAt || stamCfg.timer.start || now;
+    slStamMain = formatClock(at);
+  } else if (stamCfg.timer.running) {
+    slStamMain = formatGameMinute(stamina.fullIn);
+  } else {
+    slStamMain = '—:—';
+  }
+  setText(slRefs.stamina.main, slStamMain);
+  setClass(slRefs.stamina.main, 'slmain' + (stamina.isFull ? ' reached' : ''));
+  setText(slRefs.stamina.current, String(stamina.current));
+  setText(slRefs.stamina.max, String(SL_STAM_MAX));
+  setText(slRefs.stamina.clock, stamina.isFull ? '' : (stamina.fullAt ? '　' + formatPlanClock(stamina.fullAt) : ''));
+
+  const filled = '●'.repeat(orb.current) + '○'.repeat(SL_ORB_MAX - orb.current);
+  setText(slRefs.orb.main, filled);
+  setClass(slRefs.orb.main, 'slmain slorbs' + (orb.isFull ? ' full' : ''));
+  if (orb.isFull) {
+    setText(slRefs.orb.next, orb.fullAt ? formatClock(orb.fullAt) : 'MAX');
+  } else if (orbCfg.timer.running) {
+    if (slRefs.orb.next) {
+      const nextTxt = formatGameMinute(orb.nextIn);
+      const html = '<span class="orb-label">次</span>' + nextTxt;
+      if (slRefs.orb.next.dataset._h !== html) {
+        slRefs.orb.next.dataset._h = html;
+        slRefs.orb.next.innerHTML = html;
+      }
+    }
+  } else {
+    setText(slRefs.orb.next, orb.current + '/4　未開始');
+  }
+  setClass(slRefs.orb.next, 'orb-sub-left' + (orb.isFull ? ' reached' : ''));
+  setText(slRefs.orb.full, '');
+  setText(slRefs.orb.fullAt, (!orb.isFull && orbCfg.timer.running && orb.fullAt) ? formatPlanClock(orb.fullAt) : '');
+}
+function setupSLDelegatedEvents(){
+  const wrap = document.getElementById('slwrap');
+  if (!wrap || wrap.dataset.delegated) return;
+  wrap.dataset.delegated = '1';
+  wrap.addEventListener('click', (ev) => {
+    const target = ev.target;
+    if (target.closest && target.closest('input')) return;
+    const card = target.closest && target.closest('.slcard');
+    if (!card) return;
+    const type = card.dataset.sltype;
+    if (slEdit && slEdit.type === type && slEdit.mode === 'armed') { slBeginEdit(type); return; }
+    if (slEdit) return;
+    slArm(type);
+  });
+  // 数字を4桁で打ち止めにする。H:MMのコロンは数字数に含めない。
+  // キー入力と貼り付けの双方で同じ制限を適用し、5桁・6桁の確定時拒否を不要にする。
+  wrap.addEventListener('input', (ev) => {
+    const input = ev.target;
+    if (!input || input.id !== 'sl-orb-full-input') return;
+    const raw = String(input.value || '');
+    let digits = 0;
+    let next = '';
+    for (const ch of raw) {
+      if (/^\d$/.test(ch)) {
+        if (digits < 4) { next += ch; digits += 1; }
+      } else if (ch === ':' && !next.includes(':')) {
+        next += ch;
+      }
+    }
+    if (next !== raw) {
+      input.value = next;
+      input.setSelectionRange(next.length, next.length);
+    }
+  });
+  wrap.addEventListener('focusout', (ev) => {
+    const input = ev.target;
+    if (!input || !input.id || (input.id !== 'sl-stamina-current-input' && input.id !== 'sl-orb-full-input')) return;
+    slCommit();
+  });
+  wrap.addEventListener('keydown', (ev) => {
+    const input = ev.target;
+    if (!input || !input.id || (input.id !== 'sl-stamina-current-input' && input.id !== 'sl-orb-full-input')) return;
+    if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); input.value = ''; input.blur(); }
+  });
+  document.addEventListener('click', (ev) => {
+    if (!slEdit) return;
+    if (ev.target && ev.target.closest && ev.target.closest('.slcard')) return;
+    slCommitOutside();
+  });
+}
+function cacheRefs(){
+  refs = [];
+  for (let i = 0; i < N; i++) {
+    refs.push({
+      card: document.getElementById('card-' + i),
+      stamVal: document.getElementById('stam-val-' + i),
+      stamPlan: document.getElementById('stam-plan-' + i),
+      stamSubCur: document.getElementById('stam-direct-cur-' + i),
+      stamSubSep: document.getElementById('stam-subsep-' + i),
+      stamSubMax: document.getElementById('stam-submax-' + i),
+      idleVal: document.getElementById('idle-val-' + i),
+      idleSub: document.getElementById('idle-sub-' + i),
+      idleSubClockTime: document.getElementById('idle-subclock-time-' + i),
+      idleSubClockSuffix: document.getElementById('idle-subclock-suffix-' + i),
+      mark: document.getElementById('daily-mark-' + i),
+      weeklyMark: document.getElementById('weekly-mark-' + i),
+      stamSub: document.getElementById('stam-sub-' + i),
+      directCurEl: document.getElementById('stam-direct-cur-' + i)
+    });
+  }
+}
+
+function softBlur(){
+  const ae = document.activeElement;
+  if (!ae || ae === document.body || !ae.blur) return;
+  requestAnimationFrame(() => { try { ae.blur(); } catch (e) {} });
+}
+
+function onCardClick(i, ev){
+  const t = ev.target;
+  // スタミナカード全体（名前・ランク・上部空白・タイマー部を含む）を単一の通常タップ入口として扱う。
+  // 名前・ランクの長押しだけは、委譲された長押し判定が先に編集へ切り替える。
+  if (!t || !t.closest) return;
+  if (t.closest('input') || t.closest('button') || t.closest('.name-input') || t.closest('.rank-input')) return;
+
+  // 手入力欄を閉じるために同じタイマーを押した場合、このclickは確定操作としてのみ消費する。
+  if (pendingManualStamTap === i) {
+    pendingManualStamTap = -1;
+    return;
+  }
+
+  if (textEditIdx >= 0) {
+    softBlur();
+    textEditIdx = -1;
+    return;
+  }
+
+  // 放置報酬が確認待ちなら、スタミナ側の最初のタップは解除だけに使う。
+  if (Object.keys(armedIdle).length > 0) {
+    disarmAllIdle();
+    return;
+  }
+
+  // 参考表示中の通常タップは状態を保ち、確定は長押しに限定する。
+  // 手入力中の通常タップは従来どおり入力状態を保つ。
+  if (stamEdit && stamEdit.index === i) return;
+  // 別タイマーの仮値が残っている場合は、段階に応じて取消または確定だけを行う。
+  if (stamEdit) {
+    resolveStamEditFromOutside();
+    return;
+  }
+
+  // 1回目は、40消費後の最小値を取消可能な参考表示として出す。
+  beginStamReference(i);
+}
+
+function setAbyssNameDisplay(disp, text){ setLongPressDisplay(disp, 'name-lp-hit', text); }
+function setAbyssRankDisplay(disp, rank){ setLongPressDisplay(disp, 'rank-lp-hit', 'Lv.' + rank); }
+function endRankEditVisual(i){
+  const rank = state.slots[i].rank || 1;
+  restoreLongPressEdit(document.getElementById('rank-' + i), document.getElementById('rank-disp-' + i), String(rank), 'Lv.' + rank, 'rank-lp-hit', false);
+}
+function endNameEditVisual(i){
+  const val = state.slots[i].label || '';
+  restoreLongPressEdit(document.getElementById('name-' + i), document.getElementById('name-disp-' + i), val, val || ('スロット ' + (i + 1)), 'name-lp-hit', !val);
+}
+function beginNameEdit(i){
+  for (let j = 0; j < N; j++) endRankEditVisual(j);
+  const el = document.getElementById('name-' + i);
+  const disp = document.getElementById('name-disp-' + i);
+  if (!el) return;
+  setVisible(disp, false);
+  el.classList.add('editing');
+  el.value = state.slots[i].label || '';
+  textEditIdx = i;
+  focusEditAtEnd(el);
+}
+function onNameBlur(i){
+  const el = document.getElementById('name-' + i);
+  const disp = document.getElementById('name-disp-' + i);
+  if (!el) return;
+  const val = el.value;
+  setLabel(i, val);
+  restoreLongPressEdit(el, disp, val, val || ('スロット ' + (i + 1)), 'name-lp-hit', !val);
+  if (textEditIdx === i) textEditIdx = -1;
+}
+
+// ゲーム固有の編集ロジックは統合せず、外部解除の入口だけを共通化する。
+const EDIT_LIFECYCLE_SCOPE = Object.freeze({
+  ALL: Object.freeze(['abyss', 'g', 'sl']),
+  GAME_TABS: Object.freeze(['g', 'sl'])
+});
+function resolveTimerEdits(scopes = EDIT_LIFECYCLE_SCOPE.ALL){
+  if (scopes.includes('abyss')) resolveStamEditFromOutside();
+  if (scopes.includes('g')) gCommitOutside();
+  if (scopes.includes('sl')) slCommitOutside();
+  syncIdleConfirmBackdrop();
+}
+function closeAllPanels(){
+  resolveTimerEdits();
+  disarmAllIdle();
+  syncIdleConfirmBackdrop();
+  softBlur();
+}
+
+// ---- テスト用: ドットアビスのグループタブ ----
+// ---- テスト用ゲームタブ ----
+let gameMinuteKey = '';
+// ---- Gジェネ操作 ----
+// Gジェネは同時に1枚しか編集できないため、編集状態を単一値で保持する。
+let gEdit = null;
+
+function gSetNameDisplay(disp, text){ setLongPressDisplay(disp, 'gname-lp-hit', text); }
+
+function gClearEdit(){
+  if (!gEdit) return;
+  const i = gEdit.index;
+  const card = document.getElementById('gcard-' + i);
+  const sub = document.getElementById('g-sub-' + i);
+  const cur = document.getElementById('g-cur-' + i);
+  const max = document.getElementById('g-max-input-' + i);
+  if (card) card.classList.remove('g-inline-active');
+  if (sub) sub.classList.remove('g-inline-editing', 'g-inline-current', 'g-inline-max');
+  if (cur) { cur.value = ''; cur.readOnly = true; cur.tabIndex = -1; }
+  if (max) { max.value = ''; max.readOnly = true; max.tabIndex = -1; }
+  gEdit = null;
+  renderG();
+  requestAnimationFrame(renderG);
+  syncIdleConfirmBackdrop();
+}
+
+function gBeginEdit(i, mode){
+  gClearEdit();
+  const field = document.getElementById(mode === G_EDIT_MODE.MAX ? 'g-max-input-' + i : 'g-cur-' + i);
+  const card = document.getElementById('gcard-' + i);
+  const sub = document.getElementById('g-sub-' + i);
+  if (!field || !card || !sub) return;
+  gEdit = { index: i, mode };
+  field.readOnly = false;
+  field.tabIndex = 0;
+  field.value = '';
+  card.classList.add('g-inline-active');
+  sub.classList.add('g-inline-editing', mode === G_EDIT_MODE.MAX ? 'g-inline-max' : 'g-inline-current');
+  syncIdleConfirmBackdrop();
+  field.focus({ preventScroll: true });
+}
+
+function gCommit(){
+  if (!gEdit || gEdit.mode === G_EDIT_MODE.ARMED) return;
+  const { index: i, mode } = gEdit;
+  const s = state.g.slots[i];
+  const field = document.getElementById(mode === G_EDIT_MODE.MAX ? 'g-max-input-' + i : 'g-cur-' + i);
+  const text = field ? String(field.value || '').trim() : '';
+  if (text !== '') {
+    const n = mode === G_EDIT_MODE.CURRENT
+      ? clampInt(text, 0, s.stamMax, null)
+      : clampInt(text, 1, 999, null);
+    if (n !== null) {
+      if (mode === G_EDIT_MODE.CURRENT) {
+        s.stamCurrent = n;
+        s.stamStart = Date.now();
+        s.stamRunning = true;
+      } else {
+        s.stamMax = n;
+        if (s.stamCurrent > s.stamMax) s.stamCurrent = s.stamMax;
+      }
+      saveState();
+    }
+  }
+  gClearEdit();
+  renderG();
+  startTicking();
+}
+
+function gArm(i){
+  if (gEdit) { gClearEdit(); return; }
+  gEdit = { index: i, mode: G_EDIT_MODE.ARMED };
+  const card = document.getElementById('gcard-' + i);
+  if (card) card.classList.add('g-inline-active');
+  syncIdleConfirmBackdrop();
+}
+
+function gCommitOutside(){
+  if (!gEdit) return;
+  if (gEdit.mode === G_EDIT_MODE.ARMED) gClearEdit();
+  else gCommit();
+}
+
+function renderGName(i){
+  const input = document.getElementById('g-name-' + i);
+  const disp = document.getElementById('g-name-disp-' + i);
+  const label = (state.g.slots[i] && state.g.slots[i].label) || '';
+  restoreLongPressEdit(input, disp, label, label || ('G' + (i + 1)), 'gname-lp-hit', !label);
+}
+
+function beginGNameEdit(i){
+  gClearEdit();
+  for (let j = 0; j < GN; j++) renderGName(j);
+  const input = document.getElementById('g-name-' + i);
+  const disp = document.getElementById('g-name-disp-' + i);
+  if (!input) return;
+  setVisible(disp, false);
+  input.classList.add('editing');
+  input.value = state.g.slots[i].label || '';
+  textEditIdx = 1000 + i;
+  focusEditAtEnd(input);
+}
+
+function onGNameBlur(i){
+  const input = document.getElementById('g-name-' + i);
+  if (!input) return;
+  state.g.slots[i].label = input.value;
+  saveState();
+  if (textEditIdx === 1000 + i) textEditIdx = -1;
+  renderGName(i);
+}
+
+function toggleGMark(i){
+  const s = state.g.slots[i];
+  const mark = document.getElementById('g-mark-' + i);
+  s.missionDone = !s.missionDone;
+  saveState();
+  if (mark) {
+    mark.classList.toggle('show', s.missionDone);
+    setAttr(mark, 'aria-pressed', s.missionDone);
+    if (document.activeElement === mark) mark.blur();
+  }
+}
+
+function ensureGDailyDate(){
+  const today = dayStrAt(G_RESET_HOUR);
+  if (state.g.dailyDate !== today) {
+    state.g.dailyDate = today;
+    state.g.slots.forEach(s => { s.missionDone = false; });
+    gRefs.forEach(r => {
+      if (r.mark) { r.mark.classList.remove('show'); setAttr(r.mark, 'aria-pressed', false); }
+    });
+    saveState();
+  }
+}
+
+function setupGDelegatedEvents(){
+  const wrap = document.getElementById('gwrap');
+  if (!wrap || wrap.dataset.gInlineReady) return;
+  wrap.dataset.gInlineReady = '1';
+  let gNameLongPressClickUntil = 0;
+
+  wrap.addEventListener('click', (ev) => {
+    const target = ev.target;
+    if (target.closest && target.closest('input')) return;
+    const mark = target.closest && target.closest('.gmark');
+    const name = target.closest && target.closest('.gname-lp-hit');
+    // チェックは長押し専用。名前は通常タップをカード操作へ通す。
+    if (mark) return;
+    // 名前の長押し後にブラウザが発火する自動クリックだけは、編集を閉じないよう短時間無視する。
+    if (name && performance.now() < gNameLongPressClickUntil) return;
+    const card = target.closest && target.closest('.gcard');
+    if (!card) return;
+    const i = Number(card.dataset.idx);
+    if (gEdit && gEdit.index === i && gEdit.mode === G_EDIT_MODE.ARMED) { gBeginEdit(i, G_EDIT_MODE.CURRENT); return; }
+    if (gEdit) return;
+    gArm(i);
+  });
+
+  wrap.addEventListener('focusout', (ev) => {
+    const t = ev.target;
+    if (!t || !t.id) return;
+    if (t.id.indexOf('g-cur-') === 0 || t.id.indexOf('g-max-input-') === 0) gCommit();
+    else if (t.classList && t.classList.contains('gname-input')) onGNameBlur(Number(t.id.split('-').pop()));
+  });
+
+  wrap.addEventListener('keydown', (ev) => {
+    const t = ev.target;
+    if (!t || !t.id || (t.id.indexOf('g-cur-') !== 0 && t.id.indexOf('g-max-input-') !== 0)) return;
+    if (ev.key === 'Enter') { ev.preventDefault(); t.blur(); }
+    if (ev.key === 'Escape') { ev.preventDefault(); t.value = ''; t.blur(); }
+  });
+
+  let timer = null, sx = 0, sy = 0;
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  const start = (ev) => {
+    if (ev.touches && ev.touches.length > 1) return;
+    const target = ev.target;
+    if (!target) return;
+    const mark = target.closest && target.closest('.gmark');
+    const name = target.closest && target.closest('.gname-lp-hit');
+    const card = target.closest && target.closest('.gcard');
+    if (!mark && !name && !card) return;
+    const point = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+    sx = point.clientX; sy = point.clientY;
+    cancel();
+    timer = setTimeout(() => {
+      timer = null;
+      if (mark) { toggleGMark(Number(mark.dataset.idx)); return; }
+      if (name) {
+        gNameLongPressClickUntil = performance.now() + 360;
+        beginGNameEdit(Number(card.dataset.idx));
+        return;
+      }
+      gBeginEdit(Number(card.dataset.idx), G_EDIT_MODE.MAX);
+    }, 500);
+  };
+  const move = (ev) => {
+    if (!timer) return;
+    const point = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+    const dx = point.clientX - sx, dy = point.clientY - sy;
+    if (dx * dx + dy * dy > 144) cancel();
+  };
+  wrap.addEventListener('touchstart', start, { passive:true });
+  wrap.addEventListener('touchmove', move, { passive:true });
+  wrap.addEventListener('touchend', cancel, { passive:true });
+  wrap.addEventListener('touchcancel', cancel, { passive:true });
+  wrap.addEventListener('mousedown', (ev) => { if (ev.button === 0) start(ev); });
+  wrap.addEventListener('mousemove', move);
+  wrap.addEventListener('mouseup', cancel);
+
+  document.addEventListener('click', (ev) => {
+    if (!gEdit) return;
+    if (ev.target && ev.target.closest && ev.target.closest('.gcard')) return;
+    gCommitOutside();
+  });
+}
+
+
+
+// ---- 放置報酬の二段階受取 ----
+
+function setLabel(i, val){
+  state.slots[i].label = val;
+  clearTimeout(labelSaveTimer);
+  labelSaveTimer = setTimeout(saveState, 300);
+}
+
+function toggleMissionMark(i){
+  const s = state.slots[i];
+  const mark = refs[i] && refs[i].mark;
+  s.missionDone = !s.missionDone;
+  saveState();
+  if (mark) {
+    mark.classList.toggle('show', s.missionDone);
+    mark.classList.remove('armed');
+  }
+  renderDailyProgress();
+}
+function toggleWeeklyMark(i){
+  const s = state.slots[i];
+  const mark = refs[i] && refs[i].weeklyMark;
+  s.weeklyDone = !s.weeklyDone;
+  saveState();
+  if (mark) mark.classList.toggle('show', s.weeklyDone);
+}
+
+function beginRankEdit(i){
+  for (let j = 0; j < N; j++) endNameEditVisual(j);
+  const el = document.getElementById('rank-' + i);
+  const disp = document.getElementById('rank-disp-' + i);
+  if (!el) return;
+  setVisible(disp, false);
+  el.classList.add('editing');
+  el.value = String(state.slots[i].rank || 1);
+  textEditIdx = i;
+  focusEditAtEnd(el);
+}
+function onRankBlur(i){
+  const el = document.getElementById('rank-' + i);
+  const disp = document.getElementById('rank-disp-' + i);
+  if (!el) return;
+  const r = clampInt(String(el.value).replace(/\D/g, ''), RANK_MIN, RANK_MAX, state.slots[i].rank || 1);
+  const now = Date.now();
+  const s = state.slots[i];
+  if (s.stamRunning && s.stamStart) {
+    const info = getStamInfo(s, now);
+    applyStamCurrentPreservingCycle(s, info.current, now);
+  }
+  s.rank = r;
+  s.stamMax = stamMaxFromRank(r);
+  if (s.stamCurrent > s.stamMax) s.stamCurrent = s.stamMax;
+  restoreLongPressEdit(el, disp, String(r), 'Lv.' + r, 'rank-lp-hit', false);
+  saveState();
+  render();
+  if (textEditIdx === i) textEditIdx = -1;
+}
+
+function syncIdleConfirmBackdrop(){
+  const bd = document.getElementById('backdrop');
+  if (!bd) return;
+  const hasStamEdit = !!stamEdit;
+  const hasGEdit = typeof gEdit !== 'undefined' && !!gEdit;
+  const hasSLEdit = !!slEdit;
+  if (hasStamEdit || hasGEdit || hasSLEdit) {
+    bd.classList.add('show');
+    bd.classList.remove('idle-confirm');
+    return;
+  }
+  bd.classList.remove('show');
+  bd.classList.toggle('idle-confirm', Object.keys(armedIdle).length > 0);
+}
+
+function updateIdleReceiveVisual(i, armed){
+  const block = document.getElementById('idle-block-' + i);
+  const val = document.getElementById('idle-val-' + i);
+  const sub = document.getElementById('idle-sub-' + i);
+  if (!block || !val || !sub) return;
+  block.classList.toggle('receive-armed', armed);
+  if (armed) {
+    // 残りタイマーは隠さず、強調色と再タップ案内だけで受取待機を示す。
+    const idle = getIdleInfo(state.slots[i], Date.now());
+    setText(val, idle.display);
+    const time = document.getElementById('idle-subclock-time-' + i);
+    const suffix = document.getElementById('idle-subclock-suffix-' + i);
+    setClockParts(time, suffix, '', '受取');
+    if (suffix) suffix.classList.toggle('await-action-label', true);
+  }
+  syncIdleConfirmBackdrop();
+}
+function disarmIdle(i){
+  if (Object.prototype.hasOwnProperty.call(armedIdle, i)) {
+    clearTimeout(armedIdle[i]);
+    delete armedIdle[i];
+    updateIdleReceiveVisual(i, false);
+    render();
+  }
+}
+function disarmAllIdle(){ Object.keys(armedIdle).forEach(k => disarmIdle(Number(k))); }
+
+function closeAbyssEditForIdle(){
+  const active = document.activeElement;
+  if (active && active.id && active.id.indexOf('stam-direct-cur-') === 0) active.blur();
+  softBlur();
+}
+
+function commitIdleReceive(i){
+  if (!Object.prototype.hasOwnProperty.call(armedIdle, i)) return false;
+  clearTimeout(armedIdle[i]);
+  delete armedIdle[i];
+  updateIdleReceiveVisual(i, false);
+  if (document.activeElement) document.activeElement.blur();
+  // 初回も受取後も、従来どおり12時間計測を開始する。
+  state.slots[i].idleStart = Date.now() - IDLE_LEAD_MS;
+  state.slots[i].idleRunning = true;
+  saveState();
+  render();
+  startTicking();
+  return true;
+}
+function onIdleTimerTap(i){
+  // 確認待ち中の通常タップは受取にせず、長押しだけを確定操作にする。
+  if (Object.prototype.hasOwnProperty.call(armedIdle, i)) return;
+  // 別スロットが受取確認中なら、最初のタップは確認を解除するだけにする。
+  // 意図せず別の放置報酬をそのまま受取待機へ切り替えないための安全クッション。
+  const hasOtherArmedIdle = Object.keys(armedIdle).some((key) => Number(key) !== i);
+  if (hasOtherArmedIdle) {
+    disarmAllIdle();
+    return;
+  }
+  disarmAllIdle();
+  // 受取確認へ入る時点で状態を登録し、即時描画と毎秒更新を必ず開始する。
+  armedIdle[i] = true;
+  updateIdleReceiveVisual(i, true);
+  // 待機開始で変わるのは対象カードと暗転だけなので、全カードの再描画は行わない。
+  startTicking();
+}
+
+function render(){
+  try {
+    ensureDailyDate();
+    ensureWeeklyDate();
+    const now = Date.now();
+    if (!refs.length) return;
+    for (let i = 0; i < N; i++) {
+      const s = state.slots[i];
+      const r = refs[i];
+      if (!r || !r.stamVal) continue;
+      const stam = getStamInfo(s, now);
+      const idle = getIdleInfo(s, now);
+      const stamUrgent = s.stamRunning && stam.fullAt != null && stam.fullAt <= now + URGENT_MS;
+      const idleAlertClass = getIdleAlertClass(s, idle);
+      // A/B/Cは全て常時表示するため、全カードを同一の描画条件で更新する。
+      const renderVisibleCard = true;
+      let stamMain, stamCls, stamCurTxt, stamMaxTxt, stamPlanTxt;
+      if (s.stamRunning) {
+        if (stam.isFull) {
+          stamMain = stam.fullAt ? formatClock(stam.fullAt) : ''; stamCls = 'tval stam reached';
+          stamCurTxt = String(stam.current); stamMaxTxt = String(s.stamMax);
+          stamPlanTxt = '';
+        } else {
+          stamMain = formatGameMinute(stam.fullIn);
+          stamCls = 'tval stam' + (stamUrgent ? ' urgent' : '');
+          stamCurTxt = String(stam.current); stamMaxTxt = String(s.stamMax);
+          stamPlanTxt = formatPlanClock(stam.fullAt);
+        }
+      } else {
+        stamMain = '—:—'; stamCls = 'tval stam';
+        stamCurTxt = String(s.stamCurrent); stamMaxTxt = String(s.stamMax); stamPlanTxt = '';
+      }
+      if (stamEdit && stamEdit.index === i) {
+        stamCurTxt = String(stamEdit.value);
+        if (stamEdit.phase === DOT_EDIT_PHASE.REFERENCE) {
+          stamPlanTxt = '確定';
+        }
+      }
+      if (renderVisibleCard) {
+        setText(r.stamVal, stamMain); setClass(r.stamVal, stamCls);
+        setText(r.stamPlan, stamPlanTxt);
+        r.stamPlan.classList.toggle('await-action-label', stamPlanTxt === '確定');
+        setText(r.stamSubCur, stamCurTxt);
+        setText(r.stamSubMax, stamMaxTxt);
+        let idleCls = 'tval idle';
+        if (idle.isFull) idleCls += ' reached';
+        else if (idleAlertClass) idleCls += ' ' + idleAlertClass;
+        const idleArmed = Object.prototype.hasOwnProperty.call(armedIdle, i);
+        const idleMain = idle.isFull ? (idle.clockTxt || '') : idle.display;
+        if (idleArmed) {
+          // 受取待機中も残りタイマーを維持し、色と操作案内だけで受取待機を示す。
+          setText(r.idleVal, idleMain);
+          setClockParts(r.idleSubClockTime, r.idleSubClockSuffix, '', '受取');
+        } else {
+          setText(r.idleVal, idleMain);
+          if (idle.isFull) {
+            setClockParts(r.idleSubClockTime, r.idleSubClockSuffix, '', '');
+          } else if (idle.clockTxt) {
+            setClockParts(r.idleSubClockTime, r.idleSubClockSuffix, idle.clockTxt, '');
+          } else {
+            setClockParts(r.idleSubClockTime, r.idleSubClockSuffix, '', idle.meta);
+          }
+        }
+        r.idleSubClockSuffix.classList.toggle('await-action-label', idleArmed);
+        setClass(r.idleVal, idleCls);
+      }
+    }
+  } catch (e) { console.warn(e); }
+  const gameMinuteKeyNow = String(Math.floor(Date.now() / 60000));
+  if (gameMinuteKeyNow !== gameMinuteKey) {
+    renderG();
+    renderSL();
+    gameMinuteKey = gameMinuteKeyNow;
+  }
+  // すべて満タン・未開始なら、不要な毎秒描画を停止する。
+  if (tickId && !needsTicking()) stopTicking();
+}
+
+function renderG(){
+  try {
+    ensureGDailyDate();
+    const now = Date.now();
+    if (!gRefs.length) return;
+    for (let i = 0; i < GN; i++) {
+      const s = state.g.slots[i];
+      const r = gRefs[i];
+      if (!r || !r.val) continue;
+      const stam = getGStamInfo(s, now);
+      let main, cls, curTxt, maxTxt, clockTxt;
+      if (s.stamRunning) {
+        if (stam.isFull) {
+          main = stam.fullAt ? formatClock(stam.fullAt) : 'MAX'; cls = 'gval reached';
+          curTxt = String(stam.current); maxTxt = String(s.stamMax);
+          clockTxt = '';
+        } else {
+          main = formatGameMinute(stam.fullIn);
+          cls = 'gval';
+          curTxt = String(stam.current); maxTxt = String(s.stamMax);
+          clockTxt = formatPlanClock(stam.fullAt);
+        }
+      } else {
+        main = '—:—'; cls = 'gval';
+        curTxt = String(s.stamCurrent); maxTxt = String(s.stamMax); clockTxt = '';
+      }
+      setText(r.val, main); setClass(r.val, cls);
+      setText(r.subCur, curTxt); setText(r.subMax, maxTxt); setText(r.subClock, clockTxt);
+    }
+  } catch (e) { console.warn(e); }
+}
+
+function needsTicking(){
+  const now = Date.now();
+  for (let i = 0; i < N; i++) {
+    const s = state.slots[i];
+    if (s.stamRunning && !getStamInfo(s, now).isFull) return true;
+    if (s.idleRunning && !getIdleInfo(s, now).isFull) return true;
+  }
+  for (let i = 0; i < GN; i++) {
+    const s = state.g.slots[i];
+    if (s.stamRunning && !getGStamInfo(s, now).isFull) return true;
+  }
+  if (state.sl.stamina.running && !getSLTimerInfo(state.sl.stamina, SL_STAM_MAX, SL_STAM_INTERVAL, now).isFull) return true;
+  if (state.sl.orb.running && !getSLTimerInfo(state.sl.orb, SL_ORB_MAX, SL_ORB_INTERVAL, now).isFull) return true;
+  return false;
+}
+
+// 1回の描画完了後に次回だけを予約する。重複したループは世代番号で無効化する。
+function scheduleNextTick(generation){
+  if (generation !== tickGeneration || !needsTicking()) return;
+  const unitMs = 60000;
+  const delay = Math.max(80, unitMs - (Date.now() % unitMs));
+  tickId = setTimeout(() => {
+    tickId = null;
+    if (generation !== tickGeneration) return;
+    if (!needsTicking()) { stopTicking(); return; }
+    // 個別ゲームの描画例外が起きても、次回予約を失わないようにする。
+    try { render(); } catch (e) { console.warn(e); }
+    if (generation === tickGeneration && needsTicking()) scheduleNextTick(generation);
+  }, delay);
+}
+function startTicking(forceRestart = false){
+  if (!needsTicking()) {
+    stopTicking();
+    return;
+  }
+  // 復帰・ユーザー操作では古い予約を無効化し、新しい世代の単一ループへ即時接続する。
+  if (forceRestart) {
+    tickGeneration += 1;
+    if (tickId) clearTimeout(tickId);
+    tickId = null;
+  }
+  if (!tickId) scheduleNextTick(tickGeneration);
+}
+function stopTicking(){
+  tickGeneration += 1;
+  if (tickId) { clearTimeout(tickId); tickId = null; }
+}
+// 編集の開閉・タブ切替・確定待機への移行後に、次フレームで単一ループを再接続する。
+function scheduleInteractionTickRecovery(){
+  if (interactionTickRecoveryFrame) return;
+  interactionTickRecoveryFrame = requestAnimationFrame(() => {
+    interactionTickRecoveryFrame = 0;
+    if (document.hidden || !needsTicking()) return;
+    startTicking(true);
+  });
+}
+
+function setupDelegatedEvents(){
+  const grid = document.getElementById('grid');
+  if (!grid || grid.dataset.delegated) return;
+  grid.dataset.delegated = '1';
+
+  const markManualStamTap = (ev) => {
+    const target = ev.target;
+    // カード内のどこを押しても、手入力を閉じるためのタップとして扱う。
+    const card = target && target.closest && target.closest('.abyss-stam-card');
+    const i = card ? Number(card.dataset.idx) : NaN;
+    if (stamEdit && stamEdit.index === i && stamEdit.phase === DOT_EDIT_PHASE.MANUAL && document.activeElement === refs[i].directCurEl) {
+      pendingManualStamTap = i;
+    } else if (pendingManualStamTap >= 0) {
+      pendingManualStamTap = -1;
+    }
+  };
+  grid.addEventListener('touchstart', markManualStamTap, { passive: true });
+  grid.addEventListener('mousedown', (ev) => { if (ev.button === 0) markManualStamTap(ev); });
+
+  grid.addEventListener('click', (ev) => {
+    const t = ev.target;
+    const actionCard = t.closest && t.closest('[data-idx]');
+    const actionIndex = actionCard ? Number(actionCard.dataset.idx) : NaN;
+    if (pendingLongPressClick) {
+      const sameCard = Number.isFinite(actionIndex) && actionIndex === pendingLongPressClick.index;
+      const withinWindow = performance.now() <= pendingLongPressClick.expiresAt;
+      pendingLongPressClick = null;
+      if (sameCard && withinWindow) return;
+    }
+    const idleBlock = t.closest && t.closest('[data-idle-receive]');
+    if (idleBlock) {
+      const cardEl = idleBlock.closest('.card');
+      const idx = cardEl ? Number(cardEl.dataset.idx) : NaN;
+      if (Number.isFinite(idx)) {
+        const now = performance.now();
+        if (Object.prototype.hasOwnProperty.call(armedIdle, idx)) {
+          if (lastIdleQuickTap.index === idx && now - lastIdleQuickTap.at <= 240) {
+            lastIdleQuickTap = { index: -1, at: 0 };
+            toggleWeeklyMark(idx);
+            return;
+          }
+          lastIdleQuickTap = { index: idx, at: now };
+          return;
+        }
+        lastIdleQuickTap = { index: -1, at: 0 };
+        // 放置報酬を押したら、開いているスタミナ編集を静かに閉じて受取操作へ移る。
+        closeAbyssEditForIdle();
+        onIdleTimerTap(idx);
+      }
+      return;
+    }
+    const nameHit = t.closest && t.closest('.name-lp-hit');
+    const rankHit = t.closest && t.closest('.rank-lp-hit');
+    if (nameHit || rankHit) {
+      // コンパクトな見出し領域もカードの通常タップへ通し、長押しだけを編集に残す。
+      const stamCard = (nameHit || rankHit).closest('.abyss-stam-card');
+      const idx = stamCard ? Number(stamCard.dataset.idx) : NaN;
+      if (Number.isFinite(idx)) onCardClick(idx, ev);
+      return;
+    }
+    const el = t.closest('[data-action]');
+    if (el) {
+      const action = el.dataset.action;
+      const i = Number(el.dataset.idx);
+      if (action === 'card') onCardClick(i, ev);
+      else if (action === 'mark') { /* 長押し判定で制御 */ }
+      return;
+    }
+    if (t.closest && (t.closest('input') || t.closest('.edit-panel'))) return;
+  });
+
+  grid.addEventListener('focusout', (ev) => {
+    const t = ev.target;
+    if (!t.id) return;
+    if (t.id.indexOf('stam-direct-cur-') === 0) commitStamEdit(t.value);
+    else if (t.classList && t.classList.contains('name-input')) onNameBlur(Number(t.id.split('-').pop()));
+    else if (t.classList && t.classList.contains('rank-input')) onRankBlur(Number(t.id.split('-').pop()));
+  });
+
+  grid.addEventListener('keydown', (ev) => {
+    const t = ev.target;
+    if (!t || !t.id || t.id.indexOf('stam-direct-cur-') !== 0) return;
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      t.blur();
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      t.value = '';
+      t.blur();
+    }
+  });
+
+  grid.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (t.classList && t.classList.contains('name-input')) {
+      const idx = Number(t.id.split('-').pop());
+      state.slots[idx].label = t.value;
+      clearTimeout(labelSaveTimer);
+      labelSaveTimer = setTimeout(saveState, 300);
+    }
+  });
+
+  // 仮値中に編集カード以外を押したら、その仮値を確定または解除する。
+  document.addEventListener('click', (ev) => {
+    if (!stamEdit) return;
+    const t = ev.target;
+    const isInsideEditedCard = t && t.closest && t.closest('#card-' + stamEdit.index);
+    if (isInsideEditedCard || (t && t.closest && t.closest('.tblock-stam'))) return;
+    pendingManualStamTap = -1;
+    resolveStamEditFromOutside();
+  });
+
+  let lpTimer = null;
+  let lpX = 0, lpY = 0;
+  const LP_MS = 500;
+  const LP_MOVE2 = 14 * 14; // 指の微ブレでキャンセルされにくくする
+  const clearLp = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
+  const lpStart = (ev) => {
+    // 2本指などは無視（スクロール開始の誤判定を減らす）
+    if (ev.touches && ev.touches.length > 1) return;
+    const el = ev.target;
+    if (!el) return;
+    // 新しい指操作が始まった場合は、前回の長押し終了後clickの保護を解除する。
+    if (pendingLongPressClick) pendingLongPressClick = null;
+    const idleBlock = el.closest && el.closest('[data-idle-receive]');
+    const nameHit = el.closest && el.closest('.name-lp-hit');
+    const rankHit = el.closest && el.closest('.rank-lp-hit');
+    const stamBlock = el.closest && el.closest('.tblock-stam');
+    const stamCard = (stamBlock && stamBlock.closest ? stamBlock.closest('.abyss-stam-card') : null) || (el.closest && el.closest('.abyss-stam-card'));
+    let mode = null;
+    if (nameHit) mode = 'name';
+    else if (rankHit) mode = 'rank';
+    else if (idleBlock) {
+      const idleIndex = Number(idleBlock.dataset.idx);
+      // 確認待ちの放置報酬は長押しで受取を確定する。
+      mode = Object.prototype.hasOwnProperty.call(armedIdle, idleIndex) ? 'idle-armed' : 'idle-mark';
+    } else if (stamCard && !(el.closest && el.closest('input'))) {
+      const stamIndex = stamCard ? Number(stamCard.dataset.idx) : NaN;
+      const isReference = stamEdit && stamEdit.index === stamIndex && stamEdit.phase === DOT_EDIT_PHASE.REFERENCE;
+      // 確認待ちは確定、通常時は従来どおり現在値の手入力を開く。
+      mode = isReference ? 'stam-confirm' : 'stam-manual';
+    } else return;
+    const idEl = idleBlock || nameHit || rankHit || stamCard;
+    const cardEl = idEl && idEl.closest ? idEl.closest('.card') : null;
+    const i = Number((idEl.dataset && idEl.dataset.idx != null) ? idEl.dataset.idx : (cardEl && cardEl.dataset ? cardEl.dataset.idx : NaN));
+    if (!Number.isFinite(i)) return;
+    clearLp();
+    const pt = (ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
+    lpX = pt.clientX; lpY = pt.clientY;
+    lpTimer = setTimeout(() => {
+      lpTimer = null;
+      if (mode === 'idle-armed') {
+        commitIdleReceive(i);
+        pendingLongPressClick = { index: i, expiresAt: performance.now() + 240 };
+      } else if (mode === 'idle-mark') {
+        toggleMissionMark(i);
+        pendingLongPressClick = { index: i, expiresAt: performance.now() + 240 };
+      } else if (mode === 'name') {
+        beginNameEdit(i);
+        pendingLongPressClick = { index: i, expiresAt: performance.now() + 240 };
+      } else if (mode === 'rank') {
+        beginRankEdit(i);
+        pendingLongPressClick = { index: i, expiresAt: performance.now() + 240 };
+      }
+      else if (mode === 'stam-confirm') {
+        commitStamEdit();
+        pendingLongPressClick = { index: i, expiresAt: performance.now() + 240 };
+      } else beginStamManualInput(i);
+    }, LP_MS);
+  };
+  const lpMove = (ev) => {
+    if (!lpTimer) return;
+    const pt = (ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
+    const dx = pt.clientX - lpX, dy = pt.clientY - lpY;
+    if (dx * dx + dy * dy > LP_MOVE2) clearLp();
+  };
+  grid.addEventListener('touchstart', lpStart, { passive: true });
+  grid.addEventListener('touchmove', lpMove, { passive: true });
+  grid.addEventListener('touchend', clearLp, { passive: true });
+  grid.addEventListener('touchcancel', clearLp, { passive: true });
+  grid.addEventListener('contextmenu', (ev) => { ev.preventDefault(); }, { passive: false });
+  grid.addEventListener('mouseleave', clearLp, { passive: true });
+  grid.addEventListener('mousedown', (ev) => { if (ev.button === 0) lpStart(ev); });
+  grid.addEventListener('mousemove', lpMove);
+  grid.addEventListener('mouseup', clearLp);
+}
+
+document.addEventListener('contextmenu', (ev) => {
+  // 入力欄を含む全画面で、スマホの長押しメニューを表示しない。
+  ev.preventDefault();
+}, { capture: true });
+
+document.addEventListener('selectstart', (ev) => {
+  // スタミナ、名前、ランクの長押し時に表示文字をハイライトさせない。
+  const el = ev.target;
+  if (el && el.closest && el.closest('.rank-lp-hit, .name-lp-hit, .tblock-stam')) ev.preventDefault();
+}, { capture: true });
+
+
+// 初期描画・更新予約・日付リセット予約はloadState()で完了している。
+// 起動後のアイドル処理ではPWA登録だけを遅延実行し、二重描画は行わない。
+let startupStabilized = false;
+function scheduleStartupStabilization(){
+  const stabilize = () => {
+    if (startupStabilized || document.hidden) return;
+    startupStabilized = true;
+    scheduleServiceWorkerRegistration();
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(stabilize, { timeout: 600 });
+  else setTimeout(stabilize, 50);
+}
+
+</script>
+
+<script>
+loadState();
+setupDelegatedEvents();
+setupGDelegatedEvents();
+setupSLDelegatedEvents();
+const appRootForTickRecovery = document.querySelector('.wrap');
+if (appRootForTickRecovery) appRootForTickRecovery.addEventListener('click', scheduleInteractionTickRecovery);
+scheduleStartupStabilization();
+const startupGraceUntil = Date.now() + 3000;
+
+// ---- 画面復帰時のタイマー同期処理 ----
+// 起動直後の初回pageshow/focus/resumeはloadState()直後の二重描画になるため除外する。
+// 起動後の連続復帰イベントは短い debounce で1回にまとめる。
+let resumeDebounceTimer = null;
+let lastResumeAt = 0;
+// Androidのvisibilitychange・resume・pageshow・focusの連続通知をまとめる。
+const RESUME_FORCE_COALESCE_MS = 800;
+const RESUME_NORMAL_DEBOUNCE_MS = 320;
+
+function shouldSkipInitialResume(event){
+  if (Date.now() >= startupGraceUntil) return false;
+  // BFCacheからの復帰は、起動直後に見えても必ず同期する。
+  return !(event && event.type === 'pageshow' && event.persisted);
+}
+
+function resumeTicking(force){
+  if (document.hidden) return;
+  const now = Date.now();
+  // visibilitychange・resume・pageshowが連続しても、最初の即時描画だけを採用する。
+  const minGap = force ? RESUME_FORCE_COALESCE_MS : RESUME_NORMAL_DEBOUNCE_MS;
+  if (now - lastResumeAt < minGap) return;
+  lastResumeAt = now;
+
+  if (resumeDebounceTimer) {
+    clearTimeout(resumeDebounceTimer);
+    resumeDebounceTimer = null;
+  }
+
+  const restart = () => {
+    if (document.hidden) return;
+    render();
+    // 復帰時は、見かけ上のIDが残っていても実体を再生成して連続更新を保証する。
+    startTicking(true);
+    scheduleResetCheck();
+  };
+
+  // タスク復帰は即時同期する。通常の重複イベントだけ短くまとめる。
+  if (force) {
+    restart();
+    return;
+  }
+  resumeDebounceTimer = setTimeout(() => {
+    resumeDebounceTimer = null;
+    restart();
+  }, 48);
+}
+
+function scheduleResetCheck(){
+  if (resetCheckTimer) clearTimeout(resetCheckTimer);
+
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(1, 0, 1, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+
+  const nextGameReset = new Date(now);
+  nextGameReset.setHours(5, 0, 1, 0);
+  if (nextGameReset <= now) nextGameReset.setDate(nextGameReset.getDate() + 1);
+  if (nextGameReset < next) next.setTime(nextGameReset.getTime());
+
+  resetCheckTimer = setTimeout(() => {
+    resetCheckTimer = null;
+    if (!document.hidden) {
+      render();
+      startTicking();
+    }
+    scheduleResetCheck();
+  }, Math.max(1000, next.getTime() - now.getTime()));
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // 次の復帰を直前イベントの抑止対象にしない。
+    lastResumeAt = 0;
+    if (Date.now() < startupGraceUntil) return;
+    // Android Chrome／PWAシェルでは復帰通知が欠ける場合があるため、
+    // 進行中の描画ループはここで止めない。非表示中はブラウザ側が自然に抑制する。
+    if (resumeDebounceTimer) {
+      clearTimeout(resumeDebounceTimer);
+      resumeDebounceTimer = null;
+    }
+  } else {
+    // Androidのタスク復帰では最初の可視化を必ず同期する。
+    if (shouldSkipInitialResume()) return;
+    resumeTicking(true);
+  }
+});
+
+// 一部のWebView・PWAシェルが送る復帰通知も同じ経路で扱う。
+document.addEventListener('resume', (event) => {
+  if (shouldSkipInitialResume(event)) return;
+  resumeTicking(true);
+});
+
+window.addEventListener('pageshow', (event) => {
+  if (shouldSkipInitialResume(event)) return;
+  resumeTicking(true);
+});
+// visibilitychangeが届かないPWAシェルでも、フォーカス復帰を保険として同期入口にする。
+window.addEventListener('focus', (event) => {
+  if (shouldSkipInitialResume(event)) return;
+  resumeTicking(true);
+});
+
+const SW_UPDATE_CHECK_KEY = 'dotabyss:sw-update-check:v1';
+const SW_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+function isServiceWorkerUpdateDue(now){
+  try {
+    const last = Number(localStorage.getItem(SW_UPDATE_CHECK_KEY));
+    return !Number.isFinite(last) || last <= 0 || now < last || now - last >= SW_UPDATE_CHECK_INTERVAL_MS;
+  } catch (_) {
+    // 保存不可の環境では、従来どおり起動時に確認する。
+    return true;
+  }
+}
+
+function markServiceWorkerUpdateChecked(now){
+  try { localStorage.setItem(SW_UPDATE_CHECK_KEY, String(now)); } catch (_) {}
+}
+
+function scheduleServiceWorkerRegistration(){
+  if (swRegistrationScheduled) return;
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+
+  swRegistrationScheduled = true;
+  const register = async () => {
+    try {
+      const existing = await navigator.serviceWorker.getRegistration('./');
+      // 未登録時は必ず登録する。登録済みなら更新確認を6時間に1回へ抑える。
+      if (!existing) {
+        await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+        markServiceWorkerUpdateChecked(Date.now());
+        return;
+      }
+      const now = Date.now();
+      if (!isServiceWorkerUpdateDue(now)) return;
+      await existing.update();
+      markServiceWorkerUpdateChecked(now);
+    } catch (_) {}
+  };
+
+  // Service Workerの取得・インストールを初期描画と競合させない。
+  if ('requestIdleCallback' in window) requestIdleCallback(register, { timeout: 8000 });
+  else setTimeout(register, 2500);
+}
+</script>
+</body>
+</html>
