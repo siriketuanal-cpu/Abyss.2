@@ -1,6 +1,6 @@
 # v227 忠実・ゲーム別分離版の運用
 
-この版は、v227のDOM、CSS、ゲーム処理、起動順を保持したまま、CSSとJavaScriptを外部ファイルへ分離した実用版である。`core.js`には共有状態・保存・時間計算、`abyss.js`、`generation.js`、`starleap.js`にはゲーム別処理、`bootstrap.js`には起動・復帰・サービスワーカー登録処理を保持する。
+この版は、v227のDOM、CSS、ゲーム処理、起動順を保持したまま、CSSとJavaScriptを外部ファイルへ分離した実用版である。`core-v228.js`には共有状態・保存・時間計算、`abyss-v228.js`、`generation-v228.js`、`starleap-v228.js`にはゲーム別処理、`bootstrap-v228.js`には起動・復帰・サービスワーカー登録処理を保持する。CSSは`styles-v228.css`を使用する。
 
 ## 安全条件
 
