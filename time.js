@@ -1,0 +1,7 @@
+export const pad=n=>String(n).padStart(2,'0');
+export const clock=ms=>{if(!ms)return '';const d=new Date(ms);return `${pad(d.getHours())}:${pad(d.getMinutes())}`};
+export const duration=ms=>{const value=Math.max(0,Math.ceil(ms/60000));return `${Math.floor(value/60)}:${pad(value%60)}`};
+export function settle(timer,max,interval,now=Date.now()){if(!timer.running||!timer.start)return {current:timer.current,full:timer.current>=max,fullAt:null,remaining:Math.max(0,(max-timer.current)*interval)};const gained=Math.max(0,Math.floor((now-timer.start)/interval));const current=Math.min(max,timer.current+gained);const fullAt=timer.start+(max-timer.current)*interval;return {current,full:current>=max,fullAt,remaining:Math.max(0,fullAt-now),gained};}
+export function commitSettle(timer,max,interval,now=Date.now()){const info=settle(timer,max,interval,now);if(info.gained){timer.current=info.current;timer.start+=info.gained*interval}if(info.full){timer.current=max;timer.start=null;timer.running=false}return info;}
+export const startTimer=(timer,current,max,interval,now=Date.now())=>{timer.current=Math.max(0,Math.min(max,Number(current)||0));timer.start=now;timer.running=timer.current<max;return timer;};
+export function idleInfo(slot,now=Date.now()){if(!slot.idleRunning||!slot.idleStart)return {full:false,remaining:slot.idleCapMs||0,display:'未開始',plan:''};const cap=slot.idleCapMs||0;const end=slot.idleStart+cap;const remaining=Math.max(0,end-now);return {full:remaining===0,remaining,end,display:remaining?duration(remaining):clock(end),plan:remaining?clock(end):''};}

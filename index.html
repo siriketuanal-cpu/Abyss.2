@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles-phase3.css">
+  <link rel="stylesheet" href="styles-phase4.css">
+  <title>深淵</title>
+</head>
+<body>
+  <main class="wrap" id="app" aria-live="polite">
+    <header class="bar">
+      <div class="bar-left"><button id="manage-button" class="text-button" type="button">管理</button><span class="bar-note">毎朝5:00更新</span></div>
+      <div id="game-date" class="daily-value"></div>
+      <div id="daily-progress" class="daily-progress" aria-label="デイリー進捗"></div>
+    </header>
+    <section id="abyss-grid" class="abyss-grid" aria-label="ドットアビス"></section>
+    <section id="g-grid" class="other-grid" aria-label="Gジェネ"></section>
+    <section id="sl-grid" class="other-grid" aria-label="スターリープ"></section>
+  </main>
+  <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+  <dialog id="manage-dialog" class="manage-dialog" aria-labelledby="manage-title">
+    <section class="manage-panel">
+      <header class="manage-head"><h2 id="manage-title">管理</h2><button id="manage-close" class="manage-close" type="button" aria-label="閉じる">×</button></header>
+      <p class="manage-copy">保存データはv227と同じ形式です。操作前にエクスポートを作成できます。</p>
+      <div class="manage-actions">
+        <button id="export-button" type="button">保存を書き出す</button>
+        <label class="file-button">保存を読み込む<input id="import-input" type="file" accept="application/json,.json"></label>
+        <button id="reset-button" class="danger-button" type="button">この端末の保存を初期化</button>
+      </div>
+      <p id="manage-status" class="manage-status" role="status"></p>
+    </section>
+  </dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
