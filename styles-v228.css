@@ -78,9 +78,10 @@ input,textarea{
   height:20px;padding:0 6px;border-radius:4px;
   font-size:9px;font-weight:800;letter-spacing:.04em;
   line-height:1;white-space:nowrap;
-  color:#1a1408;
-  background:#ffc94a;
-  border:1px solid #e0a82e;
+  color:#edf9ff;
+  background:#0b6fd3;
+  border:1px solid #67c8ff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 6px rgba(59,163,255,.38);
 }
 /* テスト用: ドットアビスをグループカラーごとに切り替える。 */
 .card-row{display:flex;align-items:center;gap:11px;}
