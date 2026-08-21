@@ -1,18 +1,18 @@
 /* 深淵タイマー Service Worker — 起動性能最適化版 */
 /* 公開時にindex.htmlまたは静的ファイルを更新したら CACHE_NAME を上げる。 */
 const CACHE_PREFIX = 'abyss2-game-split-';
-const CACHE_NAME = 'abyss2-game-split-v1';
+const CACHE_NAME = 'abyss2-game-split-v2-versioned-assets';
 
 // 起動に必須の最小アプリシェル。アイコンは公開先に置く前提。
 const CORE_ASSETS = [
   './',
   './index.html',
-  './styles.css',
-  './core.js',
-  './abyss.js',
-  './generation.js',
-  './starleap.js',
-  './bootstrap.js',
+  './styles-v228.css',
+  './core-v228.js',
+  './abyss-v228.js',
+  './generation-v228.js',
+  './starleap-v228.js',
+  './bootstrap-v228.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
