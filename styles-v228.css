@@ -76,12 +76,13 @@ input,textarea{
 .complete-badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:20px;padding:0 6px;border-radius:4px;
-  font-size:9px;font-weight:800;letter-spacing:.04em;
+  font-size:9px;font-weight:900;letter-spacing:.025em;
   line-height:1;white-space:nowrap;
-  color:#edf9ff;
-  background:#0b6fd3;
-  border:1px solid #67c8ff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 6px rgba(59,163,255,.38);
+  color:#04142f;
+  background:linear-gradient(135deg,#2098f2 0%,#0b61bd 100%);
+  border:1px solid #76cfff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 0 0 1px #032d68,0 1px 5px rgba(7,93,188,.55);
+  text-shadow:0 1px 0 rgba(255,255,255,.2);
 }
 /* テスト用: ドットアビスをグループカラーごとに切り替える。 */
 .card-row{display:flex;align-items:center;gap:11px;}
