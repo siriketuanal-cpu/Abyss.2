@@ -25,29 +25,6 @@ function getSLConfig(type){
     : { timer: state.sl.stamina, max: SL_STAM_MAX, interval: SL_STAM_INTERVAL };
 }
 
-function normalizeSLTimer(type, now){
-  const cfg = getSLConfig(type);
-  const timer = cfg.timer;
-  if (!timer.running || !timer.start) return getSLTimerInfo(timer, cfg.max, cfg.interval, now);
-  const elapsed = Math.max(0, now - timer.start);
-  const recovered = Math.floor(elapsed / cfg.interval);
-  if (recovered > 0) {
-    timer.current = Math.min(cfg.max, timer.current + recovered);
-    timer.start += recovered * cfg.interval;
-  }
-  if (timer.current >= cfg.max) {
-    timer.current = cfg.max;
-    timer.running = false;
-    timer.start = null;
-  }
-  return getSLTimerInfo(timer, cfg.max, cfg.interval, now);
-}
-
-function formatSLFullRecoveryInput(ms){
-  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
-  return Math.floor(totalMinutes / 60) + ':' + String(totalMinutes % 60).padStart(2, '0');
-}
-
 function parseSLFullRecoveryInput(value){
   const raw = String(value || '').trim().replace(/：/g, ':');
   let hours, minutes;
@@ -76,15 +53,6 @@ function parseSLFullRecoveryInput(value){
   if (ms < 0 || ms > SL_ORB_MAX * SL_ORB_INTERVAL) return null;
   return ms;
 }
-function placeCaretAtEnd(el){
-  requestAnimationFrame(() => {
-    try {
-      const end = el.value.length;
-      el.setSelectionRange(end, end);
-    } catch (e) {}
-  });
-}
-
 function slClearEdit(){
   if (!slEdit) return;
   Object.keys(slRefs).forEach(key => {
@@ -102,7 +70,6 @@ function slClearEdit(){
   requestAnimationFrame(renderSL);
   syncIdleConfirmBackdrop();
 }
-function closeSLCard(){ slClearEdit(); }
 function slArm(type){
   if (slEdit) { slClearEdit(); return; }
   const r = slRefs[type];

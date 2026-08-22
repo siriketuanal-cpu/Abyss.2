@@ -46,8 +46,6 @@ let gameMinuteKey = '';
 // Gジェネは同時に1枚しか編集できないため、編集状態を単一値で保持する。
 let gEdit = null;
 
-function gSetNameDisplay(disp, text){ setLongPressDisplay(disp, 'gname-lp-hit', text); }
-
 function gClearEdit(){
   if (!gEdit) return;
   const i = gEdit.index;

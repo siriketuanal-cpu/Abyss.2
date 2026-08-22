@@ -209,8 +209,6 @@ function onCardClick(i, ev){
   beginStamReference(i);
 }
 
-function setAbyssNameDisplay(disp, text){ setLongPressDisplay(disp, 'name-lp-hit', text); }
-function setAbyssRankDisplay(disp, rank){ setLongPressDisplay(disp, 'rank-lp-hit', 'Lv.' + rank); }
 function endRankEditVisual(i){
   const rank = state.slots[i].rank || 1;
   restoreLongPressEdit(document.getElementById('rank-' + i), document.getElementById('rank-disp-' + i), String(rank), 'Lv.' + rank, 'rank-lp-hit', false);
