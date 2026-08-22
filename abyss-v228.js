@@ -139,8 +139,6 @@ function build(){
   grid.innerHTML = html;
 
   cacheRefs();
-  buildG();
-  buildSL();
 }
 
 function cacheRefs(){

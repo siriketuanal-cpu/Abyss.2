@@ -1,7 +1,7 @@
 /* 深淵タイマー Service Worker — 起動性能最適化版 */
 /* 公開時にindex.htmlまたは静的ファイルを更新したら CACHE_NAME を上げる。 */
 const CACHE_PREFIX = 'abyss2-game-split-';
-const CACHE_NAME = 'abyss2-game-split-v9-dead-code-prune';
+const CACHE_NAME = 'abyss2-game-split-v11-lightweight-resume';
 
 // 起動に必須の最小アプリシェル。アイコンは公開先に置く前提。
 const CORE_ASSETS = [

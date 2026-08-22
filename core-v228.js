@@ -49,6 +49,8 @@ const defaultSLTimer = () => ({ current: 0, start: null, running: false });
 const defaultSLState = () => ({ stamina: defaultSLTimer(), orb: defaultSLTimer() });
 let slEdit = null;
 let slRefs = {};
+let secondaryGamesBuilt = false;
+let secondaryGamesBuildScheduled = false;
 
 let state = { slots: Array.from({ length: N }, defaultSlot), dailyDate: '', weeklyDate: '', g: { slots: Array.from({ length: GN }, defaultGSlot), dailyDate: '' }, sl: defaultSLState() };
 
@@ -335,7 +337,31 @@ function loadState(){
   // 進行中のタイマーがある場合だけ、毎秒描画を開始する。
   startTicking();
   scheduleResetCheck();
+  // 最初のフレームはドットアビスだけを優先し、下段の2ゲームは画面表示後に構築する。
+  scheduleSecondaryGamesBuild();
   if (storageOk) setSaveStamp('読み込み完了');
+}
+
+function buildSecondaryGames(){
+  if (secondaryGamesBuilt) return;
+  secondaryGamesBuilt = true;
+  buildG();
+  buildSL();
+  renderG();
+  renderSL();
+}
+
+function scheduleSecondaryGamesBuild(){
+  if (secondaryGamesBuilt || secondaryGamesBuildScheduled) return;
+  if (document.hidden) return;
+  secondaryGamesBuildScheduled = true;
+  const buildAfterFirstPaint = () => {
+    secondaryGamesBuildScheduled = false;
+    if (document.hidden || secondaryGamesBuilt) return;
+    buildSecondaryGames();
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(buildAfterFirstPaint, { timeout: 180 });
+  else setTimeout(buildAfterFirstPaint, 90);
 }
 
 function saveState(){

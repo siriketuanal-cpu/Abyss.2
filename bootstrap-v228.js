@@ -8,50 +8,20 @@ scheduleStartupStabilization();
 const startupGraceUntil = Date.now() + 3000;
 
 // ---- 画面復帰時のタイマー同期処理 ----
-// 起動直後の初回pageshow/focus/resumeはloadState()直後の二重描画になるため除外する。
-// 起動後の連続復帰イベントは短い debounce で1回にまとめる。
-let resumeDebounceTimer = null;
-let lastResumeAt = 0;
-// Androidのvisibilitychange・resume・pageshow・focusの連続通知をまとめる。
-const RESUME_FORCE_COALESCE_MS = 800;
-const RESUME_NORMAL_DEBOUNCE_MS = 320;
+// 軽量優先版ではvisibilitychangeだけを復帰入口にし、復帰イベントの多重保険は持たない。
+let resumeRenderTimer = null;
 
-function shouldSkipInitialResume(event){
-  if (Date.now() >= startupGraceUntil) return false;
-  // BFCacheからの復帰は、起動直後に見えても必ず同期する。
-  return !(event && event.type === 'pageshow' && event.persisted);
-}
-
-function resumeTicking(force){
+function resumeTicking(){
   if (document.hidden) return;
-  const now = Date.now();
-  // visibilitychange・resume・pageshowが連続しても、最初の即時描画だけを採用する。
-  const minGap = force ? RESUME_FORCE_COALESCE_MS : RESUME_NORMAL_DEBOUNCE_MS;
-  if (now - lastResumeAt < minGap) return;
-  lastResumeAt = now;
-
-  if (resumeDebounceTimer) {
-    clearTimeout(resumeDebounceTimer);
-    resumeDebounceTimer = null;
-  }
-
-  const restart = () => {
+  // 復帰直後は予約だけを再接続し、全体描画はブラウザの復帰処理から切り離す。
+  scheduleSecondaryGamesBuild();
+  startTicking(true);
+  if (resumeRenderTimer) clearTimeout(resumeRenderTimer);
+  resumeRenderTimer = setTimeout(() => {
+    resumeRenderTimer = null;
     if (document.hidden) return;
     render();
-    // 復帰時は、見かけ上のIDが残っていても実体を再生成して連続更新を保証する。
-    startTicking(true);
-    scheduleResetCheck();
-  };
-
-  // タスク復帰は即時同期する。通常の重複イベントだけ短くまとめる。
-  if (force) {
-    restart();
-    return;
-  }
-  resumeDebounceTimer = setTimeout(() => {
-    resumeDebounceTimer = null;
-    restart();
-  }, 48);
+  }, 150);
 }
 
 function scheduleResetCheck(){
@@ -79,36 +49,14 @@ function scheduleResetCheck(){
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // 次の復帰を直前イベントの抑止対象にしない。
-    lastResumeAt = 0;
     if (Date.now() < startupGraceUntil) return;
-    // Android Chrome／PWAシェルでは復帰通知が欠ける場合があるため、
-    // 進行中の描画ループはここで止めない。非表示中はブラウザ側が自然に抑制する。
-    if (resumeDebounceTimer) {
-      clearTimeout(resumeDebounceTimer);
-      resumeDebounceTimer = null;
+    if (resumeRenderTimer) {
+      clearTimeout(resumeRenderTimer);
+      resumeRenderTimer = null;
     }
   } else {
-    // Androidのタスク復帰では最初の可視化を必ず同期する。
-    if (shouldSkipInitialResume()) return;
-    resumeTicking(true);
+    resumeTicking();
   }
-});
-
-// 一部のWebView・PWAシェルが送る復帰通知も同じ経路で扱う。
-document.addEventListener('resume', (event) => {
-  if (shouldSkipInitialResume(event)) return;
-  resumeTicking(true);
-});
-
-window.addEventListener('pageshow', (event) => {
-  if (shouldSkipInitialResume(event)) return;
-  resumeTicking(true);
-});
-// visibilitychangeが届かないPWAシェルでも、フォーカス復帰を保険として同期入口にする。
-window.addEventListener('focus', (event) => {
-  if (shouldSkipInitialResume(event)) return;
-  resumeTicking(true);
 });
 
 function scheduleServiceWorkerRegistration(){
