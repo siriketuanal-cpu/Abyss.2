@@ -112,7 +112,10 @@ window.addEventListener('focus', (event) => {
 });
 
 const SW_UPDATE_CHECK_KEY = 'dotabyss:sw-update-check:v1';
-const SW_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const SW_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const SW_UPDATE_ACTIVE_WAIT_MS = 45 * 1000;
+let swUpdateActiveTimer = null;
+let swUpdateArmed = false;
 
 function isServiceWorkerUpdateDue(now){
   try {
@@ -137,7 +140,7 @@ function scheduleServiceWorkerRegistration(){
   const register = async () => {
     try {
       const existing = await navigator.serviceWorker.getRegistration('./');
-      // 未登録時は必ず登録する。登録済みなら更新確認を6時間に1回へ抑える。
+      // 未登録時は必ず登録する。登録済みの更新確認は、復帰直後ではなく操作後へ後段化する。
       if (!existing) {
         await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
         markServiceWorkerUpdateChecked(Date.now());
@@ -145,12 +148,34 @@ function scheduleServiceWorkerRegistration(){
       }
       const now = Date.now();
       if (!isServiceWorkerUpdateDue(now)) return;
-      await existing.update();
-      markServiceWorkerUpdateChecked(now);
+      const runDeferredUpdate = async () => {
+        if (document.hidden) return;
+        try {
+          await existing.update();
+          markServiceWorkerUpdateChecked(Date.now());
+        } catch (_) {}
+      };
+      const armAfterActiveUse = () => {
+        if (swUpdateArmed || document.hidden) return;
+        swUpdateArmed = true;
+        swUpdateActiveTimer = setTimeout(() => {
+          swUpdateActiveTimer = null;
+          if ('requestIdleCallback' in window) requestIdleCallback(runDeferredUpdate, { timeout: 5000 });
+          else setTimeout(runDeferredUpdate, 0);
+        }, SW_UPDATE_ACTIVE_WAIT_MS);
+      };
+      document.addEventListener('pointerdown', armAfterActiveUse, { once: true, passive: true });
+      document.addEventListener('keydown', armAfterActiveUse, { once: true });
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden || !swUpdateActiveTimer) return;
+        clearTimeout(swUpdateActiveTimer);
+        swUpdateActiveTimer = null;
+        swUpdateArmed = false;
+      });
     } catch (_) {}
   };
 
-  // Service Workerの取得・インストールを初期描画と競合させない。
+  // Service Workerの登録確認だけを初期描画後に行い、更新確認は操作後へ送る。
   if ('requestIdleCallback' in window) requestIdleCallback(register, { timeout: 8000 });
   else setTimeout(register, 2500);
 }
