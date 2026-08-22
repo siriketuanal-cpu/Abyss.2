@@ -111,26 +111,6 @@ window.addEventListener('focus', (event) => {
   resumeTicking(true);
 });
 
-const SW_UPDATE_CHECK_KEY = 'dotabyss:sw-update-check:v1';
-const SW_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const SW_UPDATE_ACTIVE_WAIT_MS = 45 * 1000;
-let swUpdateActiveTimer = null;
-let swUpdateArmed = false;
-
-function isServiceWorkerUpdateDue(now){
-  try {
-    const last = Number(localStorage.getItem(SW_UPDATE_CHECK_KEY));
-    return !Number.isFinite(last) || last <= 0 || now < last || now - last >= SW_UPDATE_CHECK_INTERVAL_MS;
-  } catch (_) {
-    // 保存不可の環境では、従来どおり起動時に確認する。
-    return true;
-  }
-}
-
-function markServiceWorkerUpdateChecked(now){
-  try { localStorage.setItem(SW_UPDATE_CHECK_KEY, String(now)); } catch (_) {}
-}
-
 function scheduleServiceWorkerRegistration(){
   if (swRegistrationScheduled) return;
   if (!('serviceWorker' in navigator)) return;
@@ -140,42 +120,14 @@ function scheduleServiceWorkerRegistration(){
   const register = async () => {
     try {
       const existing = await navigator.serviceWorker.getRegistration('./');
-      // 未登録時は必ず登録する。登録済みの更新確認は、復帰直後ではなく操作後へ後段化する。
+      // 未登録時だけ登録する。登録済みなら、アプリ側から更新確認を促さない。
       if (!existing) {
         await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
-        markServiceWorkerUpdateChecked(Date.now());
-        return;
       }
-      const now = Date.now();
-      if (!isServiceWorkerUpdateDue(now)) return;
-      const runDeferredUpdate = async () => {
-        if (document.hidden) return;
-        try {
-          await existing.update();
-          markServiceWorkerUpdateChecked(Date.now());
-        } catch (_) {}
-      };
-      const armAfterActiveUse = () => {
-        if (swUpdateArmed || document.hidden) return;
-        swUpdateArmed = true;
-        swUpdateActiveTimer = setTimeout(() => {
-          swUpdateActiveTimer = null;
-          if ('requestIdleCallback' in window) requestIdleCallback(runDeferredUpdate, { timeout: 5000 });
-          else setTimeout(runDeferredUpdate, 0);
-        }, SW_UPDATE_ACTIVE_WAIT_MS);
-      };
-      document.addEventListener('pointerdown', armAfterActiveUse, { once: true, passive: true });
-      document.addEventListener('keydown', armAfterActiveUse, { once: true });
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden || !swUpdateActiveTimer) return;
-        clearTimeout(swUpdateActiveTimer);
-        swUpdateActiveTimer = null;
-        swUpdateArmed = false;
-      });
     } catch (_) {}
   };
 
-  // Service Workerの登録確認だけを初期描画後に行い、更新確認は操作後へ送る。
+  // 初回登録だけを初期描画後に行い、登録済みPWAの更新確認はブラウザ標準判定へ任せる。
   if ('requestIdleCallback' in window) requestIdleCallback(register, { timeout: 8000 });
   else setTimeout(register, 2500);
 }
