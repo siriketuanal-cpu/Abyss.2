@@ -388,9 +388,11 @@ function requestSecondaryGamesBuild(){
     loadDeferredAsset('style', 'styles-games-v237.min.css'),
     loadDeferredAsset('script', 'games-deferred-v237.min.js')
   ]).then(() => {
+    buildSecondaryGames();
+    // 実カードを構築してから委譲イベントを登録する。起動直後の最初の編集操作で
+    // 空の下段コンテナを対象にしてしまう余地を減らす。
     setupGDelegatedEvents();
     setupSLDelegatedEvents();
-    buildSecondaryGames();
   }).catch((error) => {
     secondaryGamesLoading = null;
     if (gamesRoot) { gamesRoot.dataset.secondaryState = 'failed'; gamesRoot.removeAttribute('aria-busy'); }
@@ -414,8 +416,9 @@ function scheduleSecondaryGamesBuild(priority = false){
     if (document.hidden || secondaryGamesBuilt) return;
     requestSecondaryGamesBuild();
   };
-  // rICが遅延・停止するPWAシェルでも、ドットアビスの初期描画後に確実に下段読込へ進む。
-  setTimeout(buildAfterFirstPaint, 90);
+  // 初回ペイント後の次タスクで下段読込へ進む。90ms固定待機をなくして、
+  // ドットアビス先行表示を守りながら編集可能になるまでの空白を短くする。
+  requestAnimationFrame(() => setTimeout(buildAfterFirstPaint, 0));
 }
 
 function saveState(){
