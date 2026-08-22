@@ -11,7 +11,7 @@
 <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
 <meta name="mobile-web-app-capable" content="yes">
 
-  <link rel="stylesheet" href="styles-v228.css">
+  <link rel="stylesheet" href="styles-primary-v237.min.css">
 </head>
 <body>
 <div class="wrap">
@@ -21,7 +21,7 @@
     <span class="daily-progress" id="dailyProgress"></span>
   </div>
   <div class="grid" id="grid" aria-label="ドットアビス全グループ"></div>
-  <div id="gamesAll" aria-label="Gジェネ・スターリープタイマー">
+  <div id="gamesAll" aria-label="Gジェネ・スターリープタイマー" data-secondary-state="idle">
     <div class="game-tab-panel" id="game-panel-g" aria-label="Gジェネ">
       <div class="gsection"><div class="gwrap" id="gwrap"></div></div>
     </div>
@@ -32,10 +32,6 @@
   <div class="backdrop" id="backdrop" onclick="closeAllPanels()"></div>
 </div>
 <footer><span id="saveStamp">読み込み中…</span></footer>
-<script defer src="core-v228.js"></script>
-<script defer src="abyss-v228.js"></script>
-<script defer src="generation-v228.js"></script>
-<script defer src="starleap-v228.js"></script>
-<script defer src="bootstrap-v228.js"></script>
+<script defer src="app-primary-v237.min.js"></script>
 </body>
 </html>

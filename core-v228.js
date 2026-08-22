@@ -51,12 +51,14 @@ let slEdit = null;
 let slRefs = {};
 let secondaryGamesBuilt = false;
 let secondaryGamesBuildScheduled = false;
+let secondaryGamesLoading = null;
 
 let state = { slots: Array.from({ length: N }, defaultSlot), dailyDate: '', weeklyDate: '', g: { slots: Array.from({ length: GN }, defaultGSlot), dailyDate: '' }, sl: defaultSLState() };
 
 let storageOk = true;
 let textEditIdx = -1;
 let refs = [];
+let gameMinuteKey = '';
 let tickId = null;
 // 単一の自己スケジュール型描画ループの世代。古い予約済みコールバックを無効化する。
 let tickGeneration = 0;
@@ -344,24 +346,76 @@ function loadState(){
 
 function buildSecondaryGames(){
   if (secondaryGamesBuilt) return;
-  secondaryGamesBuilt = true;
+  if (typeof buildG !== 'function' || typeof buildSL !== 'function') return;
   buildG();
   buildSL();
   renderG();
   renderSL();
+  secondaryGamesBuilt = true;
+  const gamesRoot = document.getElementById('gamesAll');
+  if (gamesRoot) {
+    gamesRoot.dataset.secondaryState = 'ready';
+    gamesRoot.removeAttribute('aria-busy');
+  }
 }
 
-function scheduleSecondaryGamesBuild(){
-  if (secondaryGamesBuilt || secondaryGamesBuildScheduled) return;
+function loadDeferredAsset(kind, src){
+  return new Promise((resolve, reject) => {
+    const selector = kind === 'style' ? `link[data-deferred-asset="${src}"]` : `script[data-deferred-asset="${src}"]`;
+    const existing = document.querySelector(selector);
+    if (existing) {
+      if (existing.dataset.ready === '1') { resolve(); return; }
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(src)), { once: true });
+      return;
+    }
+    const el = kind === 'style' ? document.createElement('link') : document.createElement('script');
+    el.dataset.deferredAsset = src;
+    el.onload = () => { el.dataset.ready = '1'; resolve(); };
+    el.onerror = () => reject(new Error(src));
+    if (kind === 'style') { el.rel = 'stylesheet'; el.href = src; }
+    else { el.src = src; el.async = true; }
+    document.head.appendChild(el);
+  });
+}
+
+function requestSecondaryGamesBuild(){
+  if (secondaryGamesBuilt) return Promise.resolve();
+  if (secondaryGamesLoading) return secondaryGamesLoading;
+  const gamesRoot = document.getElementById('gamesAll');
+  if (gamesRoot) { gamesRoot.dataset.secondaryState = 'loading'; gamesRoot.setAttribute('aria-busy', 'true'); }
+  secondaryGamesLoading = Promise.all([
+    loadDeferredAsset('style', 'styles-games-v237.min.css'),
+    loadDeferredAsset('script', 'games-deferred-v237.min.js')
+  ]).then(() => {
+    setupGDelegatedEvents();
+    setupSLDelegatedEvents();
+    buildSecondaryGames();
+  }).catch((error) => {
+    secondaryGamesLoading = null;
+    if (gamesRoot) { gamesRoot.dataset.secondaryState = 'failed'; gamesRoot.removeAttribute('aria-busy'); }
+    console.warn('secondary games load failed', error);
+  });
+  return secondaryGamesLoading;
+}
+
+function scheduleSecondaryGamesBuild(priority = false){
+  if (secondaryGamesBuilt) return;
+  if (priority) {
+    secondaryGamesBuildScheduled = false;
+    requestSecondaryGamesBuild();
+    return;
+  }
+  if (secondaryGamesBuildScheduled) return;
   if (document.hidden) return;
   secondaryGamesBuildScheduled = true;
   const buildAfterFirstPaint = () => {
     secondaryGamesBuildScheduled = false;
     if (document.hidden || secondaryGamesBuilt) return;
-    buildSecondaryGames();
+    requestSecondaryGamesBuild();
   };
-  if ('requestIdleCallback' in window) requestIdleCallback(buildAfterFirstPaint, { timeout: 180 });
-  else setTimeout(buildAfterFirstPaint, 90);
+  // rICが遅延・停止するPWAシェルでも、ドットアビスの初期描画後に確実に下段読込へ進む。
+  setTimeout(buildAfterFirstPaint, 90);
 }
 
 function saveState(){
@@ -486,8 +540,8 @@ const EDIT_LIFECYCLE_SCOPE = Object.freeze({
 });
 function resolveTimerEdits(scopes = EDIT_LIFECYCLE_SCOPE.ALL){
   if (scopes.includes('abyss')) resolveStamEditFromOutside();
-  if (scopes.includes('g')) gCommitOutside();
-  if (scopes.includes('sl')) slCommitOutside();
+  if (scopes.includes('g') && typeof gCommitOutside === 'function') gCommitOutside();
+  if (scopes.includes('sl') && typeof slCommitOutside === 'function') slCommitOutside();
   syncIdleConfirmBackdrop();
 }
 function closeAllPanels(){

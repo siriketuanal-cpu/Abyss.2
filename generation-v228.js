@@ -41,7 +41,6 @@ function cacheRefsG(){
   }
 }
 
-let gameMinuteKey = '';
 // ---- Gジェネ操作 ----
 // Gジェネは同時に1枚しか編集できないため、編集状態を単一値で保持する。
 let gEdit = null;

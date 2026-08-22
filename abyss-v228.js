@@ -443,8 +443,8 @@ function render(){
   } catch (e) { console.warn(e); }
   const gameMinuteKeyNow = String(Math.floor(Date.now() / 60000));
   if (gameMinuteKeyNow !== gameMinuteKey) {
-    renderG();
-    renderSL();
+    if (secondaryGamesBuilt && typeof renderG === 'function') renderG();
+    if (secondaryGamesBuilt && typeof renderSL === 'function') renderSL();
     gameMinuteKey = gameMinuteKeyNow;
   }
   // すべて満タン・未開始なら、不要な毎秒描画を停止する。

@@ -1,9 +1,9 @@
 loadState();
 setupDelegatedEvents();
-setupGDelegatedEvents();
-setupSLDelegatedEvents();
 const appRootForTickRecovery = document.querySelector('.wrap');
 if (appRootForTickRecovery) appRootForTickRecovery.addEventListener('click', scheduleInteractionTickRecovery);
+const gamesRootForPriorityLoad = document.getElementById('gamesAll');
+if (gamesRootForPriorityLoad) gamesRootForPriorityLoad.addEventListener('pointerdown', () => scheduleSecondaryGamesBuild(true), { passive: true });
 scheduleStartupStabilization();
 const startupGraceUntil = Date.now() + 3000;
 
